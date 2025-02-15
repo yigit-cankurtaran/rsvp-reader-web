@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import JSZip from "jszip";
 
+// TODO: change speed according to the word length
+// e.g. longer words stay on screen longer, shorter words stay on screen for a shorter duration
+// TODO: add chapters so people can skip introductions and whatnot
+// TODO: save progress upon exit or save button press
+// far off TODO: add a local TTS thingy with kokoro
+
 const SpeedReader = () => {
   const [text, setText] = useState(
     "Welcome to Speed Reader! Upload your text to begin."
@@ -18,15 +24,6 @@ const SpeedReader = () => {
       const zip = new JSZip();
       const contents = await zip.loadAsync(file);
 
-      // Find and read the OPF file first
-      const opfFile = Object.values(contents.files).find((file) =>
-        file.name.endsWith(".opf")
-      );
-
-      if (!opfFile) {
-        throw new Error("Could not find OPF file in EPUB");
-      }
-
       // Find all HTML/XHTML content files
       const contentFiles = Object.values(contents.files).filter(
         (file) => file.name.endsWith(".html") || file.name.endsWith(".xhtml")
@@ -35,35 +32,28 @@ const SpeedReader = () => {
       // Extract text from all content files
       const textPromises = contentFiles.map(async (file) => {
         const content = await file.async("text");
-        // Strip HTML tags and decode entities
-        return content
-          .replace(/<[^>]*>/g, " ")
-          .replace(/&([^;]+);/g, (_, entity) => {
-            const entities = {
-              amp: "&",
-              lt: "<",
-              gt: ">",
-              quot: '"',
-              apos: "'",
-              nbsp: " ",
-            };
-            return entities[entity as keyof typeof entities] || " ";
-          })
-          .trim();
+        // Create a DOM parser
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, "text/html");
+
+        // Remove style and script tags
+        doc.querySelectorAll("style, script").forEach((el) => el.remove());
+
+        // Get only the text content
+        return doc.body.textContent || "";
       });
 
       const textContents = await Promise.all(textPromises);
-      return textContents.join(" ");
+      return textContents.join(" ").trim();
     } catch (error) {
       console.error("Error parsing EPUB:", error);
       throw new Error("Failed to parse EPUB file");
     }
   };
 
-  // Process text into words
+  // Simplified processText since HTML/CSS is already stripped
   const processText = useCallback((text: string) => {
     return text
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Remove control characters
       .replace(/\s+/g, " ") // Normalize whitespace
       .trim()
       .split(/\s+/)
