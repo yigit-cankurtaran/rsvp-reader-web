@@ -11,10 +11,24 @@ const SpeedReader = () => {
   const [text, setText] = useState(
     "Welcome to Speed Reader! Upload your text to begin."
   );
-  const [words, setWords] = useState<string[]>([]);
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [words, setWords] = useState<string[]>(() => {
+    const savedWords = localStorage.getItem("speedReaderWords");
+    return savedWords ? JSON.parse(savedWords) : [];
+  });
+  const [currentWordIndex, setCurrentWordIndex] = useState(() => {
+    // Try to load saved progress from localStorage
+    const savedProgress = localStorage.getItem("speedReaderProgress");
+    return savedProgress ? parseInt(savedProgress, 10) : 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [wpm, setWpm] = useState(300);
+  const [wpm, setWpm] = useState(() => {
+    const savedWpm = localStorage.getItem("speedReaderWpm");
+    return savedWpm ? parseInt(savedWpm, 10) : 300;
+  });
+
+  const [fileName, setFileName] = useState(() => {
+    return localStorage.getItem("speedReaderFileName") || "";
+  });
 
   const msPerWord = Math.floor(60000 / wpm);
 
@@ -60,7 +74,17 @@ const SpeedReader = () => {
       .filter((word) => word.length > 0);
   }, []);
 
-  // Handle file upload
+  // Save progress when pausing
+  const togglePlay = () => {
+    const newPlayState = !isPlaying;
+    setIsPlaying(newPlayState);
+    if (!newPlayState) {
+      localStorage.setItem("speedReaderProgress", currentWordIndex.toString());
+      localStorage.setItem("speedReaderWords", JSON.stringify(words));
+    }
+  };
+
+  // Save progress when uploading new file
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -79,6 +103,10 @@ const SpeedReader = () => {
       setText(content);
       const processedWords = processText(content);
       setWords(processedWords);
+      setFileName(file.name);
+      localStorage.setItem("speedReaderWords", JSON.stringify(processedWords));
+      localStorage.setItem("speedReaderProgress", "0");
+      localStorage.setItem("speedReaderFileName", file.name);
       setCurrentWordIndex(0);
       setIsPlaying(false);
     } catch (error) {
@@ -87,6 +115,24 @@ const SpeedReader = () => {
         "Error reading file. Please make sure it is a valid EPUB or text file."
       );
     }
+  };
+
+  // Update WPM handler to save setting
+  const handleWpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newWpm = Number(e.target.value);
+    setWpm(newWpm);
+    localStorage.setItem("speedReaderWpm", newWpm.toString());
+  };
+
+  // Update handleReset to clear filename
+  const handleReset = () => {
+    setCurrentWordIndex(0);
+    setFileName("");
+    setWords([]);
+    localStorage.removeItem("speedReaderProgress");
+    localStorage.removeItem("speedReaderWords");
+    localStorage.removeItem("speedReaderFileName");
+    setIsPlaying(false);
   };
 
   useEffect(() => {
@@ -120,13 +166,13 @@ const SpeedReader = () => {
         <div className="space-y-4">
           <div className="flex justify-center space-x-4">
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={togglePlay}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               {isPlaying ? "Pause" : "Play"}
             </button>
             <button
-              onClick={() => setCurrentWordIndex(0)}
+              onClick={handleReset}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
             >
               Reset
@@ -141,7 +187,7 @@ const SpeedReader = () => {
               max="1000"
               step="50"
               value={wpm}
-              onChange={(e) => setWpm(Number(e.target.value))}
+              onChange={handleWpmChange}
               className="w-48"
             />
             <span className="text-sm font-medium">{wpm}</span>
@@ -160,6 +206,12 @@ const SpeedReader = () => {
             {words.length > 0 &&
               `${currentWordIndex + 1} / ${words.length} words`}
           </div>
+
+          {fileName && (
+            <div className="text-center text-sm text-gray-600 mt-2">
+              Current file: {fileName}
+            </div>
+          )}
         </div>
       </div>
     </div>
