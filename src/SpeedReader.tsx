@@ -61,24 +61,44 @@ const SpeedReader = () => {
     }
   }, [isPlaying, currentWordIndex, words]);
 
+  // Update WPM handler to save setting
+  const handleWpmChange = useCallback((newWpm: number) => {
+    setWpm(newWpm);
+    localStorage.setItem("speedReaderWpm", newWpm.toString());
+  }, []);
+
   // Add keyboard control handler
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Only trigger if space is pressed and it's not in an input element
-      if (event.code === "Space" && event.target === document.body) {
-        event.preventDefault(); // Prevent page scrolling
-        togglePlay();
+      if (event.target === document.body) {
+        switch (event.code) {
+          case "Space":
+            event.preventDefault();
+            togglePlay();
+            break;
+          case "ArrowLeft":
+            event.preventDefault();
+            handleWpmChange(Math.max(50, wpm - 50));
+            break;
+          case "ArrowRight":
+            event.preventDefault();
+            handleWpmChange(Math.min(1000, wpm + 50));
+            break;
+        }
       }
     };
 
-    // Add event listener
     document.addEventListener("keydown", handleKeyPress);
 
-    // Cleanup
     return () => {
       document.removeEventListener("keydown", handleKeyPress);
     };
-  }, [togglePlay]);
+  }, [togglePlay, handleWpmChange, wpm]);
+
+  // Update the input handler to use the new handleWpmChange
+  const handleWpmInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleWpmChange(Number(e.target.value));
+  };
 
   // Save progress when uploading new file
   const handleFileProcessed = async (data: {
@@ -102,13 +122,6 @@ const SpeedReader = () => {
         JSON.stringify(data.chapters)
       );
     }
-  };
-
-  // Update WPM handler to save setting
-  const handleWpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWpm = Number(e.target.value);
-    setWpm(newWpm);
-    localStorage.setItem("speedReaderWpm", newWpm.toString());
   };
 
   // Add a function to update current chapter based on word index
@@ -228,7 +241,7 @@ const SpeedReader = () => {
         isDarkMode={isDarkMode}
         onPlayPause={togglePlay}
         onReset={handleReset}
-        onWpmChange={handleWpmChange}
+        onWpmChange={handleWpmInputChange}
         onChapterSelect={handleChapterSelect}
         onThemeToggle={() => setIsDarkMode(!isDarkMode)}
       />
