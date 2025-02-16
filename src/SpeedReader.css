@@ -116,6 +116,7 @@ body {
 /* Range input styling */
 .wpm-slider {
   width: 100%;
+  max-width: 32rem;
   height: 4px;
   background: var(--bg-secondary);
   border-radius: 2px;
@@ -154,7 +155,7 @@ body {
   display: flex;
   justify-content: center;
   width: 100%;
-  padding: 0 1rem;
+  padding: 0;
 }
 
 .file-control {
@@ -162,16 +163,18 @@ body {
   max-width: 32rem;
   display: flex;
   justify-content: center;
+  padding: 0;
 }
 
 .file-input {
-  width: auto;
+  width: 100%;
+  max-width: 32rem;
   display: flex;
   justify-content: center;
   background-color: var(--bg-secondary);
-  padding: 1rem;
-  margin-top: 1rem;
+  padding: 0.5rem;
   border-radius: 0.5rem;
+  border: 1px solid var(--text-secondary);
 }
 
 /* Reset browser default styles */
@@ -342,10 +345,12 @@ input[type="file"] {
 
 .wpm-control {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
   margin: 1rem 0;
+  width: 100%;
 }
 
 .wpm-control label {
@@ -368,9 +373,11 @@ input[type="file"] {
 
 .wpm-inputs {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1rem;
   width: 100%;
+  max-width: 32rem;
 }
 
 .wpm-number {
