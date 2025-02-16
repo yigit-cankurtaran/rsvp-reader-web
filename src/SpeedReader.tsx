@@ -282,16 +282,26 @@ const SpeedReader = () => {
 
         <div className="wpm-control">
           <label>WPM:</label>
-          <input
-            type="range"
-            min="100"
-            max="1000"
-            step="50"
-            value={wpm}
-            onChange={handleWpmChange}
-            className="wpm-slider"
-          />
-          <span>{wpm}</span>
+          <div className="wpm-inputs">
+            <input
+              type="range"
+              min="100"
+              max="1000"
+              step="50"
+              value={wpm}
+              onChange={handleWpmChange}
+              className="wpm-slider"
+            />
+            <input
+              type="number"
+              min="100"
+              max="1000"
+              step="10"
+              value={wpm}
+              onChange={handleWpmChange}
+              className="wpm-number"
+            />
+          </div>
         </div>
 
         {chapters.length > 0 && (
