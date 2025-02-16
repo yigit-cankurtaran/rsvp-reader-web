@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import JSZip from "jszip";
-
+import "./SpeedReader.css";
 // keep an eye on the chapter order
 // far off TODO: add a local TTS thingy with kokoro
 
@@ -41,6 +41,11 @@ const SpeedReader = () => {
   const [currentChapter, setCurrentChapter] = useState(() => {
     const savedChapter = localStorage.getItem("speedReaderCurrentChapter");
     return savedChapter ? parseInt(savedChapter, 10) : 0;
+  });
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem("speedReaderTheme");
+    return savedTheme === "dark";
   });
 
   const msPerWord = Math.floor(60000 / wpm);
@@ -249,85 +254,89 @@ const SpeedReader = () => {
     return () => clearInterval(interval);
   }, [isPlaying, currentWordIndex, words.length, msPerWord, words]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-theme",
+      isDarkMode ? "dark" : "light"
+    );
+    localStorage.setItem("speedReaderTheme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
-        <div className="h-32 flex items-center justify-center bg-gray-50 rounded-lg mb-6">
-          <span
-            className="text-4xl font-bold"
-            style={{ wordBreak: "break-word" }}
-          >
+    <div className="reader-container">
+      <div className="controls">
+        <div className="word-display">
+          <span className="current-word">
             {words[currentWordIndex] || "Ready"}
           </span>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={togglePlay}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              {isPlaying ? "Pause" : "Play"}
-            </button>
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-            >
-              Reset
-            </button>
-          </div>
-
-          <div className="flex items-center justify-center space-x-4">
-            <label className="text-sm font-medium">WPM:</label>
-            <input
-              type="range"
-              min="100"
-              max="1000"
-              step="50"
-              value={wpm}
-              onChange={handleWpmChange}
-              className="w-48"
-            />
-            <span className="text-sm font-medium">{wpm}</span>
-          </div>
-
-          {chapters.length > 0 && (
-            <div className="flex items-center justify-center space-x-4">
-              <label className="text-sm font-medium">Chapter:</label>
-              <select
-                value={currentChapter}
-                onChange={(e) => handleChapterSelect(Number(e.target.value))}
-                className="p-1 border rounded"
-              >
-                {chapters.map((chapter, index) => (
-                  <option key={index} value={index}>
-                    {chapter.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex justify-center">
-            <input
-              type="file"
-              accept=".txt,.epub"
-              onChange={handleFileUpload}
-              className="text-sm"
-            />
-          </div>
-
-          <div className="text-center text-sm text-gray-600">
-            {words.length > 0 &&
-              `${currentWordIndex + 1} / ${words.length} words`}
-          </div>
-
-          {fileName && (
-            <div className="text-center text-sm text-gray-600 mt-2">
-              Current file: {fileName}
-            </div>
-          )}
+        <div className="control-buttons">
+          <button onClick={togglePlay} className="btn btn-primary">
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+          <button onClick={handleReset} className="btn btn-secondary">
+            Reset
+          </button>
         </div>
+
+        <div className="wpm-control">
+          <label>WPM:</label>
+          <input
+            type="range"
+            min="100"
+            max="1000"
+            step="50"
+            value={wpm}
+            onChange={handleWpmChange}
+            className="wpm-slider"
+          />
+          <span>{wpm}</span>
+        </div>
+
+        {chapters.length > 0 && (
+          <div className="chapter-control">
+            <label>Chapter:</label>
+            <select
+              value={currentChapter}
+              onChange={(e) => handleChapterSelect(Number(e.target.value))}
+              className="chapter-select"
+            >
+              {chapters.map((chapter, index) => (
+                <option key={index} value={index}>
+                  {chapter.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="file-control">
+          <input
+            type="file"
+            accept=".txt,.epub"
+            onChange={handleFileUpload}
+            className="file-input"
+          />
+        </div>
+
+        {words.length > 0 && (
+          <div className="progress-text">
+            {currentWordIndex + 1} / {words.length} words
+          </div>
+        )}
+
+        {fileName && (
+          <div className="filename-display">Current file: {fileName}</div>
+        )}
+
+        <button
+          className="theme-toggle"
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          aria-label="Toggle theme"
+        >
+          {isDarkMode ? "☀️" : "🌙"}
+        </button>
       </div>
     </div>
   );
