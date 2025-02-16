@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import JSZip from "jszip";
 
-// TODO: add chapters so people can skip introductions and whatnot
 // far off TODO: add a local TTS thingy with kokoro
+
+interface Chapter {
+  title: string;
+  startIndex: number;
+  endIndex: number;
+}
 
 const SpeedReader = () => {
   const [text, setText] = useState(
@@ -27,6 +32,16 @@ const SpeedReader = () => {
     return localStorage.getItem("speedReaderFileName") || "";
   });
 
+  const [chapters, setChapters] = useState<Chapter[]>(() => {
+    const savedChapters = localStorage.getItem("speedReaderChapters");
+    return savedChapters ? JSON.parse(savedChapters) : [];
+  });
+
+  const [currentChapter, setCurrentChapter] = useState(() => {
+    const savedChapter = localStorage.getItem("speedReaderCurrentChapter");
+    return savedChapter ? parseInt(savedChapter, 10) : 0;
+  });
+
   const msPerWord = Math.floor(60000 / wpm);
 
   // Extract text content from EPUB
@@ -35,13 +50,27 @@ const SpeedReader = () => {
       const zip = new JSZip();
       const contents = await zip.loadAsync(file);
 
-      // Find all HTML/XHTML content files
-      const contentFiles = Object.values(contents.files).filter(
-        (file) => file.name.endsWith(".html") || file.name.endsWith(".xhtml")
-      );
+      // Find and sort content files
+      const contentFiles = Object.values(contents.files)
+        .filter(
+          (file) => file.name.endsWith(".html") || file.name.endsWith(".xhtml")
+        )
+        .sort((a, b) => {
+          // Sort by filename/path
+          const aNum = parseInt(a.name.match(/\d+/)?.[0] || "0", 10);
+          const bNum = parseInt(b.name.match(/\d+/)?.[0] || "0", 10);
+          if (aNum === bNum) {
+            return a.name.localeCompare(b.name);
+          }
+          return aNum - bNum;
+        });
+
+      let allWords: string[] = [];
+      let extractedChapters: Chapter[] = [];
+      let currentIndex = 0;
 
       // Extract text from all content files
-      const textPromises = contentFiles.map(async (file) => {
+      for (const file of contentFiles) {
         const content = await file.async("text");
         // Create a DOM parser
         const parser = new DOMParser();
@@ -50,12 +79,34 @@ const SpeedReader = () => {
         // Remove style and script tags
         doc.querySelectorAll("style, script").forEach((el) => el.remove());
 
-        // Get only the text content
-        return doc.body.textContent || "";
-      });
+        // Look for chapter titles (adjust selectors based on your EPUB structure)
+        const chapterTitle =
+          doc.querySelector("h1, h2")?.textContent ||
+          `Chapter ${extractedChapters.length + 1}`;
 
-      const textContents = await Promise.all(textPromises);
-      return textContents.join(" ").trim();
+        // Get text content
+        const text = doc.body.textContent || "";
+        const words = processText(text);
+
+        if (words.length > 0) {
+          extractedChapters.push({
+            title: chapterTitle,
+            startIndex: currentIndex,
+            endIndex: currentIndex + words.length - 1,
+          });
+
+          allWords = [...allWords, ...words];
+          currentIndex += words.length;
+        }
+      }
+
+      setChapters(extractedChapters);
+      localStorage.setItem(
+        "speedReaderChapters",
+        JSON.stringify(extractedChapters)
+      );
+
+      return allWords.join(" ");
     } catch (error) {
       console.error("Error parsing EPUB:", error);
       throw new Error("Failed to parse EPUB file");
@@ -121,14 +172,53 @@ const SpeedReader = () => {
     localStorage.setItem("speedReaderWpm", newWpm.toString());
   };
 
-  // Update handleReset to clear filename
+  // Add a function to update current chapter based on word index
+  const updateCurrentChapter = useCallback(
+    (wordIndex: number) => {
+      const newChapterIndex = chapters.findIndex(
+        (chapter) =>
+          wordIndex >= chapter.startIndex && wordIndex <= chapter.endIndex
+      );
+
+      if (newChapterIndex !== -1 && newChapterIndex !== currentChapter) {
+        setCurrentChapter(newChapterIndex);
+        localStorage.setItem(
+          "speedReaderCurrentChapter",
+          newChapterIndex.toString()
+        );
+      }
+    },
+    [chapters, currentChapter]
+  );
+
+  // Update the useEffect to check for chapter changes
+  useEffect(() => {
+    updateCurrentChapter(currentWordIndex);
+  }, [currentWordIndex, updateCurrentChapter]);
+
+  // Add chapter selection handler
+  const handleChapterSelect = (chapterIndex: number) => {
+    setCurrentWordIndex(chapters[chapterIndex].startIndex);
+    setCurrentChapter(chapterIndex);
+    localStorage.setItem(
+      "speedReaderProgress",
+      chapters[chapterIndex].startIndex.toString()
+    );
+    localStorage.setItem("speedReaderCurrentChapter", chapterIndex.toString());
+    setIsPlaying(false);
+  };
+
+  // Update handleReset to clear chapters
   const handleReset = () => {
     setCurrentWordIndex(0);
     setFileName("");
     setWords([]);
+    setChapters([]);
     localStorage.removeItem("speedReaderProgress");
     localStorage.removeItem("speedReaderWords");
     localStorage.removeItem("speedReaderFileName");
+    localStorage.removeItem("speedReaderChapters");
+    localStorage.removeItem("speedReaderCurrentChapter");
     setIsPlaying(false);
   };
 
@@ -193,6 +283,23 @@ const SpeedReader = () => {
             />
             <span className="text-sm font-medium">{wpm}</span>
           </div>
+
+          {chapters.length > 0 && (
+            <div className="flex items-center justify-center space-x-4">
+              <label className="text-sm font-medium">Chapter:</label>
+              <select
+                value={currentChapter}
+                onChange={(e) => handleChapterSelect(Number(e.target.value))}
+                className="p-1 border rounded"
+              >
+                {chapters.map((chapter, index) => (
+                  <option key={index} value={index}>
+                    {chapter.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-center">
             <input
