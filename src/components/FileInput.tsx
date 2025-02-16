@@ -79,25 +79,29 @@ const FileInput: React.FC<FileInputProps> = ({
             Start Reading
           </button>
           <p className="text-input-or">or</p>
-          <input
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            className="file-input"
-          />
+          <div className="file-control">
+            <input
+              type="file"
+              accept=".txt"
+              onChange={handleFileUpload}
+              className="file-input"
+            />
+          </div>
         </div>
       </form>
     );
   }
 
   return (
-    <div className="file-control">
-      <input
-        type="file"
-        accept=".epub"
-        onChange={handleFileUpload}
-        className="file-input"
-      />
+    <div className="file-control-wrapper">
+      <div className="file-control">
+        <input
+          type="file"
+          accept=".epub"
+          onChange={handleFileUpload}
+          className="file-input"
+        />
+      </div>
     </div>
   );
 };

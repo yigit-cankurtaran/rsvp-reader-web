@@ -27,8 +27,8 @@ body {
   --bg-secondary: #111827;
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
-  --accent: #60a5fa;
-  --accent-hover: #3b82f6;
+  --accent: #2b81ea;
+  --accent-hover: #176bf1;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
@@ -150,27 +150,34 @@ body {
 }
 
 /* Update the file control and input styles */
-.file-control {
+.file-control-wrapper {
   display: flex;
   justify-content: center;
-  margin: 1rem 0;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.file-control {
   width: 100%;
   max-width: 32rem;
-  margin: 0 auto;
+  display: flex;
+  justify-content: center;
 }
 
 .file-input {
-  width: 100%;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  font-family: var(--font-primary);
-  font-size: 0.95rem;
+  width: auto;
+  display: flex;
+  justify-content: center;
+}
+
+/* Reset browser default styles */
+input[type="file"] {
+  text-align: center !important;
 }
 
 /* Style the file input button */
-.file-input::-webkit-file-upload-button {
+.file-input::-webkit-file-upload-button,
+.file-input::file-selector-button {
   -webkit-appearance: none;
   background-color: var(--accent);
   color: white;
@@ -184,24 +191,7 @@ body {
   transition: all 0.2s ease;
 }
 
-.file-input::-webkit-file-upload-button:hover {
-  background-color: var(--accent-hover);
-}
-
-/* For Firefox */
-.file-input::file-selector-button {
-  background-color: var(--accent);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-family: var(--font-primary);
-  font-weight: 500;
-  cursor: pointer;
-  margin-right: 1rem;
-  transition: all 0.2s ease;
-}
-
+.file-input::-webkit-file-upload-button:hover,
 .file-input::file-selector-button:hover {
   background-color: var(--accent-hover);
 }
@@ -388,12 +378,27 @@ body {
   color: var(--text-primary);
   font-family: var(--font-primary);
   text-align: center;
+  position: relative;
 }
 
+/* Chrome, Safari, Edge, Opera */
 .wpm-number::-webkit-inner-spin-button,
 .wpm-number::-webkit-outer-spin-button {
-  opacity: 1;
+  -webkit-appearance: none;
   height: 1.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  border-left: 1px solid var(--text-secondary);
 }
 
 @media (max-width: 640px) {
