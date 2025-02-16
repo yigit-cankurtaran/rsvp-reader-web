@@ -233,15 +233,91 @@ body {
 
 /* Mobile responsiveness */
 @media (max-width: 640px) {
+  .reader-container {
+    padding: 1rem 0.5rem;
+  }
+
+  .word-display {
+    padding: 1.5rem;
+    min-height: 6rem;
+    margin-bottom: 1rem;
+  }
+
+  .current-word {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
   .controls {
-    padding: 0 1rem;
+    padding: 0 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .control-buttons {
+    gap: 0.5rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .wpm-control {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .chapter-control {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .chapter-select {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  .file-control {
+    margin: 0.5rem 0;
+  }
+
+  .file-input {
+    font-size: 0.85rem;
+  }
+
+  .file-input::-webkit-file-upload-button,
+  .file-input::file-selector-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
   }
 
   .theme-toggle {
     bottom: 1rem;
     right: 1rem;
-    width: 3rem;
-    height: 3rem;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .progress-text,
+  .filename-display {
+    font-size: 0.8rem;
+  }
+}
+
+/* Add even smaller screen adjustments */
+@media (max-width: 380px) {
+  .current-word {
+    font-size: clamp(1.25rem, 3.5vw, 2rem);
+  }
+
+  .controls {
+    padding: 0 0.25rem;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
   }
 }
 
