@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import JSZip from "jszip";
 
-// TODO: change speed according to the word length
-// e.g. longer words stay on screen longer, shorter words stay on screen for a shorter duration
 // TODO: add chapters so people can skip introductions and whatnot
-// TODO: save progress upon exit or save button press
 // far off TODO: add a local TTS thingy with kokoro
 
 const SpeedReader = () => {
@@ -138,6 +135,10 @@ const SpeedReader = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentWordIndex < words.length) {
+      const currentWord = words[currentWordIndex];
+      // Adjust time based on word length
+      const adjustedTime = msPerWord * (0.5 + currentWord.length / 8);
+
       interval = setInterval(() => {
         setCurrentWordIndex((prev) => {
           if (prev >= words.length - 1) {
@@ -146,10 +147,10 @@ const SpeedReader = () => {
           }
           return prev + 1;
         });
-      }, msPerWord);
+      }, adjustedTime);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, currentWordIndex, words.length, msPerWord]);
+  }, [isPlaying, currentWordIndex, words.length, msPerWord, words]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
