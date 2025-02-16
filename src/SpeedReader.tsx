@@ -52,15 +52,33 @@ const SpeedReader = () => {
 
   const msPerWord = Math.floor(60000 / wpm);
 
-  // Save progress when pausing
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     const newPlayState = !isPlaying;
     setIsPlaying(newPlayState);
     if (!newPlayState) {
       localStorage.setItem("speedReaderProgress", currentWordIndex.toString());
       localStorage.setItem("speedReaderWords", JSON.stringify(words));
     }
-  };
+  }, [isPlaying, currentWordIndex, words]);
+
+  // Add keyboard control handler
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only trigger if space is pressed and it's not in an input element
+      if (event.code === "Space" && event.target === document.body) {
+        event.preventDefault(); // Prevent page scrolling
+        togglePlay();
+      }
+    };
+
+    // Add event listener
+    document.addEventListener("keydown", handleKeyPress);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [togglePlay]);
 
   // Save progress when uploading new file
   const handleFileProcessed = async (data: {

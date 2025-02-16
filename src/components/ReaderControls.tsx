@@ -90,9 +90,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({
         </div>
       )}
 
-      {fileName && (
-        <div className="filename-display">Current file: {fileName}</div>
-      )}
+      {fileName && <div className="filename-display">Reading: {fileName}</div>}
 
       <button
         className="theme-toggle"
