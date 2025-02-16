@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import JSZip from "jszip";
 
+// keep an eye on the chapter order
 // far off TODO: add a local TTS thingy with kokoro
 
 interface Chapter {
@@ -68,6 +69,7 @@ const SpeedReader = () => {
       let allWords: string[] = [];
       let extractedChapters: Chapter[] = [];
       let currentIndex = 0;
+      let seenTitles = new Set<string>();
 
       // Extract text from all content files
       for (const file of contentFiles) {
@@ -80,11 +82,16 @@ const SpeedReader = () => {
         doc.querySelectorAll("style, script").forEach((el) => el.remove());
 
         // Look for chapter titles (adjust selectors based on your EPUB structure)
-        const chapterTitle =
-          doc.querySelector("h1, h2")?.textContent ||
+        let chapterTitle =
+          doc.querySelector("h1, h2, title")?.textContent?.trim() ||
           `Chapter ${extractedChapters.length + 1}`;
 
-        // Get text content
+        // Add chapter number if title is duplicate
+        if (seenTitles.has(chapterTitle)) {
+          chapterTitle = `${chapterTitle} (${extractedChapters.length + 1})`;
+        }
+        seenTitles.add(chapterTitle);
+
         const text = doc.body.textContent || "";
         const words = processText(text);
 
