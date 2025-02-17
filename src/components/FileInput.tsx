@@ -1,17 +1,7 @@
 import React, { useState } from "react";
 import { extractEpubContent } from "../helpers/epubHandler";
 import { processText } from "../helpers/textProcessor";
-import { Chapter, InputType } from "../types/reader";
-
-interface FileInputProps {
-  inputType: InputType;
-  onFileProcessed: (data: {
-    text: string;
-    words: string[];
-    fileName: string;
-    chapters?: Chapter[];
-  }) => void;
-}
+import { FileInputProps, InputType } from "../types/reader";
 
 const FileInput: React.FC<FileInputProps> = ({
   inputType,

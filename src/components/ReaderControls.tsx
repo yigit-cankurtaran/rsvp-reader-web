@@ -1,21 +1,5 @@
 import React from "react";
-import { Chapter } from "../types/reader";
-
-interface ReaderControlsProps {
-  isPlaying: boolean;
-  wpm: number;
-  currentChapter: number;
-  chapters: Chapter[];
-  currentWordIndex: number;
-  totalWords: number;
-  fileName: string;
-  isDarkMode: boolean;
-  onPlayPause: () => void;
-  onReset: () => void;
-  onWpmChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onChapterSelect: (chapterIndex: number) => void;
-  onThemeToggle: () => void;
-}
+import { ReaderControlsProps } from "../types/reader";
 
 const ReaderControls: React.FC<ReaderControlsProps> = ({
   isPlaying,
