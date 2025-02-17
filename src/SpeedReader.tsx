@@ -220,6 +220,54 @@ const SpeedReader = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Add this helper function
+  const getDisplayWords = useCallback(
+    (currentIndex: number) => {
+      if (!words.length) return { prev: "", current: "Ready", next: "" };
+
+      const currentWord = words[currentIndex];
+      const prevWord = words[currentIndex - 1];
+      const nextWord = words[currentIndex + 1];
+
+      // Handle long words more aggressively
+      const isLongWord = (word: string) => word && word.length > 8;
+
+      // If current word is long, show it alone
+      if (isLongWord(currentWord)) {
+        return {
+          prev: "",
+          current: currentWord,
+          next: "",
+        };
+      }
+
+      // If previous or next word is long, show only two words
+      if (isLongWord(prevWord)) {
+        return {
+          prev: "",
+          current: currentWord,
+          next: nextWord || "",
+        };
+      }
+
+      if (isLongWord(nextWord)) {
+        return {
+          prev: prevWord || "",
+          current: currentWord,
+          next: "",
+        };
+      }
+
+      // Default: show all three words if they're all short
+      return {
+        prev: prevWord || "",
+        current: currentWord,
+        next: nextWord || "",
+      };
+    },
+    [words]
+  );
+
   return (
     <div className="reader-container">
       <div className="input-type-selector">
@@ -236,15 +284,14 @@ const SpeedReader = () => {
       </div>
 
       <div className="word-display">
-        {/* TODO: long words wrap and break the flow, will fix later */}
         <span className="word first-word">
-          {words[currentWordIndex - 1] || ""}
+          {getDisplayWords(currentWordIndex).prev}
         </span>
         <span className={`word ${!isMobile ? "current-word" : ""}`}>
-          {words[currentWordIndex] || "Ready"}
+          {getDisplayWords(currentWordIndex).current}
         </span>
         <span className={`word ${isMobile ? "current-word" : ""}`}>
-          {words[currentWordIndex + 1] || ""}
+          {getDisplayWords(currentWordIndex).next}
         </span>
       </div>
 

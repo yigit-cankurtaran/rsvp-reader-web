@@ -77,7 +77,7 @@ body {
   text-align: center;
   word-break: break-word;
   letter-spacing: -0.02em;
-  opacity: 0.3;
+  opacity: 0.4;
   transition: all 0.3s ease;
 }
 
@@ -263,8 +263,14 @@ input[type="file"] {
     display: none;
   }
 
+  .word {
+    opacity: 0.5;
+  }
+
   .current-word {
-    opacity: 0.3; /* Make the middle word faded */
+    opacity: 1;
+    color: var(--highlight-word);
+    text-shadow: 0 0 1px var(--highlight-word);
   }
 
   .last-word {
@@ -340,6 +346,14 @@ input[type="file"] {
   .progress-text,
   .filename-display {
     font-size: 0.8rem;
+  }
+
+  :root {
+    --highlight-word: #ef4444;
+  }
+
+  [data-theme="dark"] {
+    --highlight-word: #dc2626;
   }
 }
 
