@@ -50,6 +50,8 @@ const SpeedReader = () => {
     return (savedType as InputType) || InputType.TEXT;
   });
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+
   const msPerWord = Math.floor(60000 / wpm);
 
   const togglePlay = useCallback(() => {
@@ -209,6 +211,15 @@ const SpeedReader = () => {
     handleReset(); // Reset the reader when changing input type
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <div className="reader-container">
       <div className="input-type-selector">
@@ -225,8 +236,15 @@ const SpeedReader = () => {
       </div>
 
       <div className="word-display">
-        <span className="current-word">
+        {/* TODO: long words wrap and break the flow, will fix later */}
+        <span className="word first-word">
+          {words[currentWordIndex - 1] || ""}
+        </span>
+        <span className={`word ${!isMobile ? "current-word" : ""}`}>
           {words[currentWordIndex] || "Ready"}
+        </span>
+        <span className={`word ${isMobile ? "current-word" : ""}`}>
+          {words[currentWordIndex + 1] || ""}
         </span>
       </div>
 
