@@ -19,22 +19,28 @@ const FileInput: React.FC<FileInputProps> = ({
       switch (inputType) {
         case InputType.EPUB:
           const epubContent = await extractEpubContent(file);
-          onFileProcessed({
-            text: epubContent.text,
-            words: processText(epubContent.text),
-            fileName: file.name,
-            chapters: epubContent.chapters,
-          });
+          onFileProcessed(
+            {
+              text: epubContent.text,
+              words: processText(epubContent.text),
+              fileName: file.name,
+              chapters: epubContent.chapters,
+            },
+            file
+          );
           break;
 
         case InputType.TEXT:
           const content = await file.text();
-          onFileProcessed({
-            text: content,
-            words: processText(content),
-            fileName: file.name,
-            chapters: [],
-          });
+          onFileProcessed(
+            {
+              text: content,
+              words: processText(content),
+              fileName: file.name,
+              chapters: [],
+            },
+            file
+          );
           break;
       }
     } catch (error) {

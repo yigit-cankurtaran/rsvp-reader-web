@@ -4,6 +4,18 @@ export interface Chapter {
   endIndex: number;
 }
 
+export interface Book {
+  id: string;
+  fileName: string;
+  title: string;
+  author: string;
+  coverUrl: string | null;
+  totalWords: number;
+  currentWordIndex: number;
+  lastReadDate: string;
+  chapters: Chapter[];
+}
+
 export interface ReaderState {
   text: string;
   words: string[];
@@ -28,7 +40,7 @@ export interface FileInputProps {
     words: string[];
     fileName: string;
     chapters?: Chapter[];
-  }) => void;
+  }, file?: File) => void;
 }
 
 export interface ReaderControlsProps {
