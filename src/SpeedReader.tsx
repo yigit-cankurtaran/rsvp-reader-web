@@ -22,6 +22,7 @@ import {
   cleanupStorage,
   clearWordsForBook,
 } from "./helpers/wordStorage";
+import { saveAppSettings, getAppSettings } from "./helpers/dexieDB";
 import "./SpeedReader.css";
 import "./styles/StorageInfo.css";
 // keep an eye on the chapter order
@@ -32,16 +33,17 @@ const SpeedReader = () => {
     "Welcome to Speed Reader! Upload your text to begin."
   );
   const [words, setWords] = useState<string[]>(() => {
-    const savedWords = localStorage.getItem("speedReaderWords");
-    return savedWords ? JSON.parse(savedWords) : [];
+    // No need to load words here now - it will be handled by useEffect
+    return [];
   });
   const [currentWordIndex, setCurrentWordIndex] = useState(() => {
-    // Try to load saved progress from localStorage
+    // Initial value, will be replaced with settings from DB
     const savedProgress = localStorage.getItem("speedReaderProgress");
     return savedProgress ? parseInt(savedProgress, 10) : 0;
   });
   const [isPlaying, setIsPlaying] = useState(false);
   const [wpm, setWpm] = useState(() => {
+    // Initial value, will be replaced with settings from DB
     const savedWpm = localStorage.getItem("speedReaderWpm");
     return savedWpm ? parseInt(savedWpm, 10) : 300;
   });
@@ -88,27 +90,82 @@ const SpeedReader = () => {
 
   const msPerWord = Math.floor(60000 / wpm);
 
-  const togglePlay = useCallback(() => {
+  // Load app settings from IndexedDB on init
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await getAppSettings();
+
+        // Update state with settings from IndexedDB
+        setWpm(settings.wpm);
+        setIsDarkMode(settings.theme === "dark");
+        setInputType(settings.inputType as InputType);
+
+        console.log("App settings loaded from IndexedDB");
+      } catch (error) {
+        console.error("Error loading app settings from IndexedDB:", error);
+        // No need to do anything - we're already using localStorage fallbacks
+      }
+    };
+
+    loadSettings();
+
+    // If there's a current book, load its words
+    if (currentBookId) {
+      loadCurrentBookWords();
+    }
+  }, []);
+
+  // Load words for current book from IndexedDB
+  const loadCurrentBookWords = async () => {
+    if (!currentBookId) return;
+
+    try {
+      const loadedWords = await loadWordsForBook(currentBookId);
+
+      if (loadedWords && loadedWords.length > 0) {
+        setWords(loadedWords);
+        console.log(`Loaded ${loadedWords.length} words for current book`);
+      } else {
+        console.warn("No words loaded for current book");
+      }
+    } catch (error) {
+      console.error("Error loading words for current book:", error);
+    }
+  };
+
+  const togglePlay = useCallback(async () => {
     const newPlayState = !isPlaying;
     setIsPlaying(newPlayState);
+
     if (!newPlayState) {
+      // Save progress in localStorage for backward compatibility
       localStorage.setItem("speedReaderProgress", currentWordIndex.toString());
       localStorage.setItem("speedReaderWords", JSON.stringify(words));
 
       // Update book progress in library
       if (currentBookId) {
-        updateBookProgress(currentBookId, currentWordIndex);
+        await updateBookProgress(currentBookId, currentWordIndex);
 
         // Save words for this specific book using our helper
-        saveWordsForBook(currentBookId, words);
+        await saveWordsForBook(currentBookId, words);
       }
     }
   }, [isPlaying, currentWordIndex, words, currentBookId]);
 
   // Update WPM handler to save setting
-  const handleWpmChange = useCallback((newWpm: number) => {
+  const handleWpmChange = useCallback(async (newWpm: number) => {
     setWpm(newWpm);
+
+    // Save to localStorage for backward compatibility
     localStorage.setItem("speedReaderWpm", newWpm.toString());
+
+    // Also save to IndexedDB
+    try {
+      await saveAppSettings({ wpm: newWpm });
+    } catch (error) {
+      console.error("Error saving WPM to IndexedDB:", error);
+    }
   }, []);
 
   // Add keyboard control handler
@@ -183,13 +240,13 @@ const SpeedReader = () => {
     // Check if localStorage is available
     if (!isStorageAvailable()) {
       alert(
-        "Warning: Your browser's localStorage is not available or is full. Your reading progress and books may not be saved."
+        "Warning: Your browser's localStorage is not available or is full. That's okay, we'll use IndexedDB instead."
       );
-      console.error("localStorage is not available");
+      console.log("localStorage is not available, using IndexedDB only");
     }
 
     // Check storage usage
-    const storageUsage = checkStorageUsage();
+    const storageUsage = await checkStorageUsage();
     console.log(
       `Storage usage: ${storageUsage.usedPercent}% (${(storageUsage.used / 1024).toFixed(1)}KB used)`
     );
@@ -197,7 +254,7 @@ const SpeedReader = () => {
     // Attempt cleanup if storage is getting full
     if (storageUsage.usedPercent > 70) {
       console.log("Storage is getting full, attempting cleanup...");
-      const cleaned = cleanupStorage();
+      const cleaned = await cleanupStorage();
       if (cleaned) {
         console.log("Successfully cleaned up some storage space");
       }
@@ -230,24 +287,24 @@ const SpeedReader = () => {
 
         // Explicitly save the words for this book BEFORE adding it to the library
         // This is a critical step to fix the issue
-        const wordsSaved = saveWordsForBook(book.id, data.words);
+        const wordsSaved = await saveWordsForBook(book.id, data.words);
         if (!wordsSaved) {
           console.error("Failed to save words for book ID:", book.id);
 
           // Check if we're out of storage space
-          const currentStorage = checkStorageUsage();
+          const currentStorage = await checkStorageUsage();
           if (currentStorage.usedPercent > 90) {
             alert(
-              "Warning: Your browser's localStorage is almost full. You may need to remove some books to add new ones."
+              "Warning: Storage is almost full. You may need to remove some books to add new ones."
             );
           }
         } else {
           // Debug storage after saving
-          debugStorageForBook(book.id);
+          await debugStorageForBook(book.id);
         }
 
         // Add book to library
-        addBook(book);
+        await addBook(book);
 
         // Force library refresh by updating the key
         setLibraryKey(Date.now());
@@ -288,7 +345,7 @@ const SpeedReader = () => {
         };
 
         // Save the words for the fallback book BEFORE adding it to the library
-        const wordsSaved = saveWordsForBook(fallbackBook.id, data.words);
+        const wordsSaved = await saveWordsForBook(fallbackBook.id, data.words);
         if (!wordsSaved) {
           console.error(
             "Failed to save words for fallback book ID:",
@@ -296,19 +353,19 @@ const SpeedReader = () => {
           );
 
           // Check if we're out of storage space
-          const currentStorage = checkStorageUsage();
+          const currentStorage = await checkStorageUsage();
           if (currentStorage.usedPercent > 90) {
             alert(
-              "Warning: Your browser's localStorage is almost full. You may need to remove some books to add new ones."
+              "Warning: Storage is almost full. You may need to remove some books to add new ones."
             );
           }
         } else {
           // Debug storage after saving
-          debugStorageForBook(fallbackBook.id);
+          await debugStorageForBook(fallbackBook.id);
         }
 
         // Add fallback book to library
-        addBook(fallbackBook);
+        await addBook(fallbackBook);
 
         // Force library refresh
         setLibraryKey(Date.now());
@@ -369,7 +426,7 @@ const SpeedReader = () => {
   }, [currentWordIndex, updateCurrentChapter]);
 
   // Add chapter selection handler
-  const handleChapterSelect = (chapterIndex: number) => {
+  const handleChapterSelect = async (chapterIndex: number) => {
     setCurrentWordIndex(chapters[chapterIndex].startIndex);
     setCurrentChapter(chapterIndex);
     localStorage.setItem(
@@ -381,12 +438,15 @@ const SpeedReader = () => {
 
     // Update book progress in library
     if (currentBookId) {
-      updateBookProgress(currentBookId, chapters[chapterIndex].startIndex);
+      await updateBookProgress(
+        currentBookId,
+        chapters[chapterIndex].startIndex
+      );
     }
   };
 
   // Update handleReset to handle both EPUB and TEXT modes
-  const handleReset = () => {
+  const handleReset = async () => {
     setCurrentWordIndex(0);
     setFileName("");
     setWords([]);
@@ -402,7 +462,7 @@ const SpeedReader = () => {
       // For EPUB mode, clear current book ID and switch to library view
       if (currentBookId) {
         // Clear words for the current book
-        clearWordsForBook(currentBookId);
+        await clearWordsForBook(currentBookId);
       }
       localStorage.removeItem("speedReaderCurrentBookId");
       setCurrentBookId(null);
@@ -450,12 +510,20 @@ const SpeedReader = () => {
       isDarkMode ? "dark" : "light"
     );
     localStorage.setItem("speedReaderTheme", isDarkMode ? "dark" : "light");
+
+    // Also save to IndexedDB
+    saveAppSettings({ theme: isDarkMode ? "dark" : "light" });
   }, [isDarkMode]);
 
-  const handleInputTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleInputTypeChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
     const newType = e.target.value as InputType;
     setInputType(newType);
     localStorage.setItem("speedReaderInputType", newType);
+
+    // Save to IndexedDB
+    await saveAppSettings({ inputType: newType });
 
     // Reset the reader when changing input type
     setCurrentWordIndex(0);
@@ -543,7 +611,7 @@ const SpeedReader = () => {
   const handleSelectBook = async (bookId: string) => {
     try {
       console.log(`Selecting book with ID: ${bookId}`);
-      const book = getBookById(bookId);
+      const book = await getBookById(bookId);
       if (!book) {
         console.error("Book not found:", bookId);
         alert("Error: Book not found in library");
@@ -551,7 +619,7 @@ const SpeedReader = () => {
       }
 
       // Debug storage for this book
-      debugStorageForBook(bookId);
+      await debugStorageForBook(bookId);
 
       // Store the ID for the currently selected book
       setCurrentBookId(bookId);
@@ -595,9 +663,9 @@ const SpeedReader = () => {
         chapterIndex.toString()
       );
 
-      // Load words from localStorage using our helper function
+      // Load words from IndexedDB using our helper function
       console.log(`Loading words for book ID: ${bookId}`);
-      const loadedWords = loadWordsForBook(bookId);
+      const loadedWords = await loadWordsForBook(bookId);
 
       if (loadedWords) {
         setWords(loadedWords);
@@ -611,11 +679,11 @@ const SpeedReader = () => {
         // Check whether localStorage is available before attempting re-upload
         if (!isStorageAvailable()) {
           alert(
-            "Warning: Your browser's localStorage is not available. This may be why the book content couldn't be loaded."
+            "Warning: Your browser's storage is not available. This may be why the book content couldn't be loaded."
           );
         }
 
-        promptForReupload(book);
+        await promptForReupload(book);
       }
     } catch (error) {
       console.error("Error loading book:", error);
@@ -624,11 +692,11 @@ const SpeedReader = () => {
   };
 
   // Helper to show re-upload message
-  const promptForReupload = (book: Book) => {
+  const promptForReupload = async (book: Book) => {
     console.log(`Creating error message for book: ${book.id}`);
 
     // Use our new helper to create error words
-    const errorWords = createErrorWords(book.id);
+    const errorWords = await createErrorWords(book.id);
 
     // Set these words in state
     setWords(errorWords);
@@ -646,13 +714,13 @@ const SpeedReader = () => {
   };
 
   // Add a toggle for switching between reader and library views
-  const toggleView = () => {
+  const toggleView = async () => {
     const newView = currentView === "reader" ? "library" : "reader";
 
     // Save progress when switching to library
     if (newView === "library" && currentBookId) {
       // Update book progress in the library
-      updateBookProgress(currentBookId, currentWordIndex);
+      await updateBookProgress(currentBookId, currentWordIndex);
 
       // Refresh the library to show updated progress
       setLibraryKey(Date.now());

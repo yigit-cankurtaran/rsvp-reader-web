@@ -16,25 +16,41 @@ const Library: React.FC<LibraryProps> = ({ onSelectBook }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load books from localStorage
-    const loadedBooks = getLibrary();
-    setBooks(loadedBooks);
-    setIsLoading(false);
+    // Load books from IndexedDB
+    const loadBooks = async () => {
+      try {
+        setIsLoading(true);
+        const loadedBooks = await getLibrary();
+        setBooks(loadedBooks);
+      } catch (error) {
+        console.error("Error loading library:", error);
+        setBooks([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBooks();
   }, []);
 
   const handleBookClick = (bookId: string) => {
     onSelectBook(bookId);
   };
 
-  const handleRemoveBook = (e: React.MouseEvent, bookId: string) => {
+  const handleRemoveBook = async (e: React.MouseEvent, bookId: string) => {
     e.stopPropagation(); // Prevent triggering the book click
     if (
       window.confirm(
         "Are you sure you want to remove this book from your library?"
       )
     ) {
-      removeBook(bookId);
-      setBooks(books.filter((book) => book.id !== bookId));
+      try {
+        await removeBook(bookId);
+        setBooks(books.filter((book) => book.id !== bookId));
+      } catch (error) {
+        console.error("Error removing book:", error);
+        alert("Failed to remove book. Please try again.");
+      }
     }
   };
 

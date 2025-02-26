@@ -1,20 +1,35 @@
 /**
- * Helper functions for managing word storage in localStorage
+ * Helper functions for managing word storage in IndexedDB (with localStorage fallback)
  */
+
+import {
+  db,
+  saveWordsForBook as saveWordsForBookDB,
+  loadWordsForBook as loadWordsForBookDB,
+  clearWordsForBook as clearWordsForBookDB,
+  checkDBStorageUsage,
+  isStorageLow
+} from './dexieDB';
+
+// Constants
+const CHUNK_SIZE = 10000; // Number of words per chunk
+const MAX_STORAGE_SIZE = 5 * 1024 * 1024; // 5MB localStorage limit
 
 /**
  * Check if localStorage is available and working
  * @returns Boolean indicating if storage is available
  */
 export const isStorageAvailable = (): boolean => {
+  if (typeof localStorage === "undefined") {
+    return false;
+  }
+  
   try {
-    const testKey = 'speedReader_test';
-    localStorage.setItem(testKey, 'test');
-    const result = localStorage.getItem(testKey) === 'test';
+    const testKey = "__storage_test__";
+    localStorage.setItem(testKey, testKey);
     localStorage.removeItem(testKey);
-    return result;
+    return true;
   } catch (e) {
-    console.error('localStorage is not available:', e);
     return false;
   }
 };
@@ -23,34 +38,47 @@ export const isStorageAvailable = (): boolean => {
  * Check localStorage usage and estimate remaining space
  * @returns Object with usage information
  */
-export const checkStorageUsage = (): { 
-  used: number; 
-  total: number; 
-  usedPercent: number;
-  items: number;
-  hasSpace: boolean;
-} => {
+export const checkStorageUsage = async (): Promise<{ used: number; total: number; usedPercent: number }> => {
   try {
-    // These are estimates, as browsers don't expose actual quota
-    const total = 5 * 1024 * 1024; // Assume 5MB total (common limit)
-    let used = 0;
+    // First check IndexedDB usage
+    const dbUsage = await checkDBStorageUsage();
     
-    // Calculate current usage
-    Object.keys(localStorage).forEach(key => {
-      const value = localStorage.getItem(key) || '';
-      used += key.length * 2 + value.length * 2; // UTF-16 characters = 2 bytes
-    });
+    console.log(`IndexedDB usage: ${dbUsage.usage} bytes, ${dbUsage.bookCount} books, ${dbUsage.chunkCount} chunks`);
+    
+    // Then fallback to localStorage for older data
+    if (isStorageAvailable()) {
+      let totalSize = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          totalSize += (key.length + (value ? value.length : 0)) * 2; // UTF-16 chars are 2 bytes
+        }
+      }
+      
+      console.log(`localStorage usage: ${totalSize} bytes`);
+      
+      // Return combined storage usage
+      const total = MAX_STORAGE_SIZE; // localStorage limit
+      const used = Math.min(totalSize, MAX_STORAGE_SIZE); // Cap at max
+      const usedPercent = Math.round((used / total) * 100);
+      
+      return { used, total, usedPercent };
+    }
+    
+    // If localStorage is not available, return IndexedDB usage estimate
+    // We don't have a fixed size limit for IndexedDB, but we'll use 50MB as a reference
+    const ESTIMATED_INDEXEDDB_LIMIT = 50 * 1024 * 1024; // 50MB
+    const usedPercent = Math.round((dbUsage.usage / ESTIMATED_INDEXEDDB_LIMIT) * 100);
     
     return {
-      used: used,
-      total: total,
-      usedPercent: Math.round((used / total) * 100),
-      items: Object.keys(localStorage).length,
-      hasSpace: used < (total * 0.9) // Consider 90% full as "no space left"
+      used: dbUsage.usage,
+      total: ESTIMATED_INDEXEDDB_LIMIT,
+      usedPercent: Math.min(usedPercent, 100) // Cap at 100%
     };
-  } catch (e) {
-    console.error('Error checking storage usage:', e);
-    return { used: 0, total: 0, usedPercent: 0, items: 0, hasSpace: false };
+  } catch (error) {
+    console.error("Error checking storage usage:", error);
+    return { used: 0, total: MAX_STORAGE_SIZE, usedPercent: 0 };
   }
 };
 
@@ -58,27 +86,52 @@ export const checkStorageUsage = (): {
  * Attempt to free up localStorage space by removing old items
  * @returns Boolean indicating if space was freed
  */
-export const cleanupStorage = (): boolean => {
+export const cleanupStorage = async (): Promise<boolean> => {
   try {
-    const keys = Object.keys(localStorage);
-    if (keys.length === 0) return false;
+    // Clean up IndexedDB first
+    console.log("Cleaning up storage...");
     
-    // Find and remove old chunk data that might be orphaned
-    const orphanedChunks = keys.filter(key => 
-      key.includes('speedReaderWords_') && 
-      key.includes('_chunk_') &&
-      !keys.includes(key.substring(0, key.lastIndexOf('_chunk_')))
-    );
+    // Get all books from IndexedDB
+    const books = await db.books.toArray();
+    const validBookIds = new Set(books.map(book => book.id));
     
-    if (orphanedChunks.length > 0) {
-      console.log(`Removing ${orphanedChunks.length} orphaned chunks`);
-      orphanedChunks.forEach(key => localStorage.removeItem(key));
-      return true;
+    // Clear orphaned chunks in IndexedDB
+    const chunks = await db.wordChunks.toArray();
+    let orphanedChunks = 0;
+    
+    for (const chunk of chunks) {
+      if (!validBookIds.has(chunk.bookId)) {
+        await db.wordChunks.delete(chunk.id);
+        orphanedChunks++;
+      }
     }
     
-    return false;
-  } catch (e) {
-    console.error('Error cleaning up storage:', e);
+    // Also clean up localStorage
+    if (isStorageAvailable()) {
+      let removed = 0;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        
+        if (key && key.startsWith('speedReaderWords_')) {
+          const bookId = key.replace('speedReaderWords_', '').split('_chunk_')[0];
+          
+          if (!validBookIds.has(bookId)) {
+            localStorage.removeItem(key);
+            removed++;
+            // Adjust the counter since we're modifying the array we're iterating
+            i--;
+          }
+        }
+      }
+      
+      console.log(`Cleaned up ${removed} orphaned items from localStorage`);
+    }
+    
+    console.log(`Cleaned up ${orphanedChunks} orphaned chunks from IndexedDB`);
+    return true;
+  } catch (error) {
+    console.error("Error cleaning up storage:", error);
     return false;
   }
 };
@@ -87,151 +140,240 @@ export const cleanupStorage = (): boolean => {
  * Log the storage status for a book
  * @param bookId The book ID to check
  */
-export const debugStorageForBook = (bookId: string): void => {
+export const debugStorageForBook = async (bookId: string): Promise<void> => {
+  console.log(`Debugging storage for book ID: ${bookId}`);
+  
   try {
-    const keys = Object.keys(localStorage).filter(key => 
-      key.includes('speedReader') || key.includes(bookId)
-    );
+    // Check IndexedDB first
+    const chunks = await db.wordChunks.where('bookId').equals(bookId).toArray();
     
-    const usage = checkStorageUsage();
+    if (chunks.length > 0) {
+      console.log(`Found ${chunks.length} chunks in IndexedDB for book ID: ${bookId}`);
+      console.log(`Total words in IndexedDB: ${chunks.reduce((total, chunk) => total + chunk.words.length, 0)}`);
+    } else {
+      console.log(`No chunks found in IndexedDB for book ID: ${bookId}`);
+    }
     
-    console.group('Storage Debug for Book: ' + bookId);
-    console.log('Storage available:', isStorageAvailable());
-    console.log(`Storage usage: ${(usage.used / 1024).toFixed(1)}KB / ${(usage.total / 1024).toFixed(1)}KB (${usage.usedPercent}%)`);
-    console.log('Total items in localStorage:', Object.keys(localStorage).length);
-    console.log('SpeedReader related items:', keys.length);
-    
-    keys.forEach(key => {
-      const value = localStorage.getItem(key);
-      let displayValue: string;
+    // Check localStorage
+    if (isStorageAvailable()) {
+      const data = localStorage.getItem(`speedReaderWords_${bookId}`);
       
-      if (value && value.length > 100) {
-        displayValue = `${value.substring(0, 50)}... (${value.length} chars)`;
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+          
+          if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
+            console.log(`Found chunked data in localStorage: ${parsedData.totalChunks} chunks, ${parsedData.totalWords} words`);
+          } else if (Array.isArray(parsedData)) {
+            console.log(`Found ${parsedData.length} words in localStorage`);
+          } else {
+            console.log(`Found data in localStorage but format is unknown`);
+          }
+        } catch (e) {
+          console.error(`Error parsing localStorage data for book ID ${bookId}:`, e);
+        }
       } else {
-        displayValue = value || 'null';
+        console.log(`No data found in localStorage for book ID: ${bookId}`);
       }
-      
-      console.log(`- ${key}: ${displayValue}`);
-    });
-    
-    console.groupEnd();
-  } catch (e) {
-    console.error('Error debugging storage:', e);
+    }
+  } catch (error) {
+    console.error(`Error debugging storage for book ID ${bookId}:`, error);
   }
 };
 
 /**
- * Save words for a specific book
+ * Save words for a specific book, using IndexedDB with localStorage fallback
  * @param bookId The book ID to save words for
  * @param words Array of words to save
  * @returns boolean indicating success
  */
-export const saveWordsForBook = (bookId: string, words: string[]): boolean => {
+export const saveWordsForBook = async (bookId: string, words: string[]): Promise<boolean> => {
+  if (!bookId || !words || words.length === 0) {
+    console.error("Invalid book ID or words array");
+    return false;
+  }
+  
+  console.log(`Saving ${words.length} words for book ID: ${bookId}`);
+  
   try {
-    if (!isStorageAvailable()) {
-      console.error('Cannot save words, localStorage is not available');
-      return false;
+    // First try to save to IndexedDB
+    const saved = await saveWordsForBookDB(bookId, words);
+    
+    if (saved) {
+      console.log(`Successfully saved words to IndexedDB for book ID: ${bookId}`);
+      return true;
     }
     
-    if (!bookId || !words || !Array.isArray(words)) {
-      console.error("Invalid parameters for saveWordsForBook", { bookId, wordCount: words?.length });
-      return false;
-    }
-    
-    const key = `speedReaderWords_${bookId}`;
-    
-    // If the word array is very large, we'll split it into chunks to avoid storage limits
-    if (words.length > 10000) {
-      // Store the total count in the main key
-      localStorage.setItem(key, JSON.stringify({
-        totalChunks: Math.ceil(words.length / 10000),
-        totalWords: words.length
-      }));
-      
-      // Store the chunks
-      const chunks = Math.ceil(words.length / 10000);
-      for (let i = 0; i < chunks; i++) {
-        const chunkWords = words.slice(i * 10000, (i + 1) * 10000);
-        localStorage.setItem(`${key}_chunk_${i}`, JSON.stringify(chunkWords));
+    // If IndexedDB fails, try using localStorage (for backward compatibility)
+    if (isStorageAvailable()) {
+      // If the words are too many, we need to chunk them
+      if (words.length > CHUNK_SIZE) {
+        const chunks = Math.ceil(words.length / CHUNK_SIZE);
+        const chunkInfo = {
+          totalChunks: chunks,
+          totalWords: words.length,
+          dateCreated: new Date().toISOString()
+        };
+        
+        // Save chunk info
+        localStorage.setItem(`speedReaderWords_${bookId}`, JSON.stringify(chunkInfo));
+        
+        // Save each chunk
+        for (let i = 0; i < chunks; i++) {
+          const chunkWords = words.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          localStorage.setItem(`speedReaderWords_${bookId}_chunk_${i}`, JSON.stringify(chunkWords));
+        }
+        
+        console.log(`Successfully chunked and saved ${words.length} words for book ID: ${bookId}`);
+        return true;
+      } else {
+        // For smaller arrays, store directly
+        localStorage.setItem(`speedReaderWords_${bookId}`, JSON.stringify(words));
+        console.log(`Successfully saved ${words.length} words for book ID: ${bookId} to localStorage`);
+        return true;
       }
-      
-      console.log(`Saved ${words.length} words in ${chunks} chunks for book ID ${bookId}`);
-    } else {
-      // For smaller arrays, store directly
-      localStorage.setItem(key, JSON.stringify(words));
-      console.log(`Saved ${words.length} words for book ID ${bookId} at key ${key}`);
     }
     
-    return true;
+    // Both IndexedDB and localStorage failed
+    return false;
   } catch (error) {
-    console.error("Error saving words for book:", error);
+    console.error(`Error saving words for book ID ${bookId}:`, error);
     return false;
   }
 };
 
 /**
- * Load words for a specific book
+ * Load words for a specific book, using IndexedDB with localStorage fallback
  * @param bookId The book ID to load words for
  * @returns Array of words or null if not found
  */
-export const loadWordsForBook = (bookId: string): string[] | null => {
+export const loadWordsForBook = async (bookId: string): Promise<string[] | null> => {
+  if (!bookId) {
+    console.error("Invalid book ID");
+    return null;
+  }
+  
+  console.log(`Loading words for book ID: ${bookId}`);
+  
   try {
-    if (!isStorageAvailable()) {
-      console.error('Cannot load words, localStorage is not available');
-      return null;
+    // First try to load from IndexedDB
+    const words = await loadWordsForBookDB(bookId);
+    
+    if (words && words.length > 0) {
+      console.log(`Successfully loaded ${words.length} words from IndexedDB for book ID: ${bookId}`);
+      return words;
     }
     
-    if (!bookId) {
-      console.error("Invalid bookId for loadWordsForBook");
-      return null;
-    }
-    
-    const key = `speedReaderWords_${bookId}`;
-    const savedWords = localStorage.getItem(key);
-    
-    if (!savedWords) {
-      console.warn(`No words found for book ID: ${bookId} at key ${key}`);
-      return null;
-    }
-    
-    const parsedData = JSON.parse(savedWords);
-    
-    // Check if we stored chunks
-    if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
-      const allWords: string[] = [];
+    // If not found in IndexedDB, try localStorage (for backward compatibility)
+    if (isStorageAvailable()) {
+      const data = localStorage.getItem(`speedReaderWords_${bookId}`);
       
-      // Load all chunks
-      for (let i = 0; i < parsedData.totalChunks; i++) {
-        const chunkKey = `${key}_chunk_${i}`;
-        const chunkData = localStorage.getItem(chunkKey);
+      if (!data) return null;
+      
+      try {
+        const parsedData = JSON.parse(data);
         
-        if (chunkData) {
-          const chunkWords = JSON.parse(chunkData);
-          if (Array.isArray(chunkWords)) {
-            allWords.push(...chunkWords);
+        // Check if it's chunked data
+        if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
+          const { totalChunks, totalWords } = parsedData;
+          let allWords: string[] = [];
+          
+          // Load each chunk
+          for (let i = 0; i < totalChunks; i++) {
+            const chunkKey = `speedReaderWords_${bookId}_chunk_${i}`;
+            const chunkData = localStorage.getItem(chunkKey);
+            
+            if (chunkData) {
+              const chunkWords = JSON.parse(chunkData);
+              if (Array.isArray(chunkWords)) {
+                allWords = allWords.concat(chunkWords);
+              }
+            }
           }
+          
+          console.log(`Successfully loaded ${allWords.length} words from chunked localStorage for book ID: ${bookId}`);
+          
+          // While we're here, let's migrate this data to IndexedDB for next time
+          saveWordsForBookDB(bookId, allWords).then(saved => {
+            if (saved) {
+              console.log(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
+            }
+          });
+          
+          return allWords;
+        } else if (Array.isArray(parsedData)) {
+          // It's a regular array of words
+          console.log(`Successfully loaded ${parsedData.length} words from localStorage for book ID: ${bookId}`);
+          
+          // Migrate to IndexedDB for next time
+          saveWordsForBookDB(bookId, parsedData).then(saved => {
+            if (saved) {
+              console.log(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
+            }
+          });
+          
+          return parsedData;
         }
+      } catch (e) {
+        console.error(`Error parsing words data for book ID ${bookId}:`, e);
+        return null;
       }
-      
-      if (allWords.length > 0) {
-        console.log(`Loaded ${allWords.length} words (from chunks) for book ID ${bookId}`);
-        return allWords;
-      }
-      
-      return null;
     }
     
-    // Handle regular non-chunked words
-    if (Array.isArray(parsedData)) {
-      console.log(`Loaded ${parsedData.length} words for book ID ${bookId}`);
-      return parsedData;
-    }
-    
-    console.warn(`Invalid words array for book ID: ${bookId}`, parsedData);
+    // Not found in either storage
+    console.log(`No words found for book ID: ${bookId}`);
     return null;
   } catch (error) {
-    console.error("Error loading words for book:", error);
+    console.error(`Error loading words for book ID ${bookId}:`, error);
     return null;
+  }
+};
+
+/**
+ * Clear all word storage for a book
+ * @param bookId The book ID to clear words for
+ */
+export const clearWordsForBook = async (bookId: string): Promise<void> => {
+  if (!bookId) {
+    console.error("Invalid book ID");
+    return;
+  }
+  
+  console.log(`Clearing words for book ID: ${bookId}`);
+  
+  try {
+    // First clear from IndexedDB
+    await clearWordsForBookDB(bookId);
+    
+    // Then clear from localStorage (for backward compatibility)
+    if (isStorageAvailable()) {
+      // Check if it's chunked data
+      const data = localStorage.getItem(`speedReaderWords_${bookId}`);
+      
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+          
+          if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
+            const { totalChunks } = parsedData;
+            
+            // Remove each chunk
+            for (let i = 0; i < totalChunks; i++) {
+              localStorage.removeItem(`speedReaderWords_${bookId}_chunk_${i}`);
+            }
+          }
+        } catch (e) {
+          // If it's not valid JSON, just proceed with removal
+        }
+        
+        // Remove the main entry
+        localStorage.removeItem(`speedReaderWords_${bookId}`);
+      }
+    }
+    
+    console.log(`Successfully cleared words for book ID: ${bookId}`);
+  } catch (error) {
+    console.error(`Error clearing words for book ID ${bookId}:`, error);
   }
 };
 
@@ -240,43 +382,30 @@ export const loadWordsForBook = (bookId: string): string[] | null => {
  * @param bookId The book ID to create error words for
  * @returns Array of error words
  */
-export const createErrorWords = (bookId: string): string[] => {
-  const errorMessage = "Book content not available. Please re-upload the EPUB file.";
-  const errorWords = errorMessage.split(" ");
+export const createErrorWords = async (bookId: string): Promise<string[]> => {
+  const errorWords = [
+    "Content",
+    "for",
+    "this",
+    "book",
+    "is",
+    "not",
+    "available",
+    "in",
+    "storage.",
+    "Please",
+    "re-upload",
+    "the",
+    "EPUB",
+    "file",
+    "to",
+    "read",
+    "it",
+    "again."
+  ];
   
-  // Save these error words
-  saveWordsForBook(bookId, errorWords);
+  // Add book ID for debugging
+  errorWords.push("(Book", "ID:", bookId + ")");
   
   return errorWords;
-};
-
-/**
- * Clear all word storage for a book
- * @param bookId The book ID to clear words for
- */
-export const clearWordsForBook = (bookId: string): void => {
-  try {
-    if (!isStorageAvailable()) {
-      console.error('Cannot clear words, localStorage is not available');
-      return;
-    }
-    
-    const key = `speedReaderWords_${bookId}`;
-    const savedWords = localStorage.getItem(key);
-    
-    // If we stored chunks, clear them all
-    if (savedWords) {
-      const parsedData = JSON.parse(savedWords);
-      if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
-        for (let i = 0; i < parsedData.totalChunks; i++) {
-          localStorage.removeItem(`${key}_chunk_${i}`);
-        }
-      }
-    }
-    
-    localStorage.removeItem(key);
-    console.log(`Cleared words for book ID ${bookId}`);
-  } catch (error) {
-    console.error("Error clearing words for book:", error);
-  }
 }; 
