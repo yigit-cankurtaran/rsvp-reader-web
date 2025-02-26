@@ -7,31 +7,33 @@ body {
   background-color: var(--bg-primary);
 }
 
-/* Base styles */
+/* Base styles with Apple-inspired design system */
 :root {
+  /* Color palette based on Apple's design system */
   --bg-primary: #ffffff;
-  --bg-secondary: #f3f4f6;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code",
-    "Roboto Mono", monospace;
-  --highlight-word: #dc2626; /* lighter red for light mode */
+  --bg-secondary: #f5f5f7;
+  --text-primary: #1d1d1f;
+  --text-secondary: #86868b;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --highlight-word: #fa5252;
+  --border-radius: 10px;
+  --font-primary: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, monospace;
+  --transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 [data-theme="dark"] {
-  --bg-primary: #1f2937;
-  --bg-secondary: #111827;
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --accent: #2b81ea;
-  --accent-hover: #176bf1;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --highlight-word: #991b1b; /* darker red for dark mode */
+  --bg-primary: #1d1d1f;
+  --bg-secondary: #2d2d2f;
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --highlight-word: #ff6b6b;
 }
 
 /* Main container */
@@ -39,7 +41,7 @@ body {
   min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: all 0.3s ease;
+  transition: var(--transition);
   padding: 2rem 1rem;
   position: fixed;
   top: 0;
@@ -55,30 +57,32 @@ body {
   align-items: center;
 }
 
-/* Word display area */
+/* Word display area - Apple-style card */
 .word-display {
   background-color: var(--bg-secondary);
-  padding: 2rem;
-  border-radius: 1rem;
+  padding: 2.5rem;
+  border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   min-height: 8rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
   width: calc(100% - 2rem);
   max-width: 48rem;
+  transition: var(--transition);
 }
 
 .word {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(1.5rem, 4vw, 3.5rem);
   font-weight: 600;
   text-align: center;
-  word-break: break-word;
+  white-space: nowrap;
   letter-spacing: -0.02em;
   opacity: 0.4;
-  transition: all 0.3s ease;
+  transition: var(--transition);
+  flex-shrink: 0;
 }
 
 .current-word {
@@ -86,28 +90,35 @@ body {
   color: var(--highlight-word);
 }
 
+/* Word display for single long words */
+.word-display:has(.word:only-child) .word {
+  white-space: normal;
+  max-width: 90%;
+  hyphens: auto;
+}
+
 /* Controls */
 .controls {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
   width: 100%;
   max-width: 32rem;
   margin: 0 auto;
 }
 
-/* Buttons */
+/* Buttons - Apple-style */
 .btn {
   padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  border-radius: 980px; /* Apple's rounded button style */
   border: none;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition);
   font-family: var(--font-primary);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
 }
 
 .btn-primary {
@@ -117,6 +128,7 @@ body {
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -127,9 +139,10 @@ body {
 .btn-secondary:hover {
   background-color: var(--text-secondary);
   color: var(--bg-primary);
+  transform: translateY(-1px);
 }
 
-/* Range input styling */
+/* Range input styling - Apple-style slider */
 .wpm-slider {
   width: 100%;
   max-width: 32rem;
@@ -137,16 +150,19 @@ body {
   background: var(--bg-secondary);
   border-radius: 2px;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .wpm-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
 .wpm-slider::-webkit-slider-thumb:hover {
@@ -154,19 +170,31 @@ body {
   transform: scale(1.1);
 }
 
-/* Chapter select */
+/* Chapter select - Apple-style dropdown */
 .chapter-select {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--text-secondary);
+  border: 1px solid transparent;
   outline: none;
   font-family: var(--font-primary);
   font-size: 0.95rem;
+  transition: var(--transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem top 50%;
+  background-size: 0.65rem auto;
+  padding-right: 2.5rem;
 }
 
-/* Update the file control and input styles */
+.chapter-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+}
+
+/* File input styling */
 .file-control-wrapper {
   display: flex;
   justify-content: center;
@@ -188,14 +216,14 @@ body {
   display: flex;
   justify-content: center;
   background-color: var(--bg-secondary);
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--text-secondary);
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
+  border: 1px solid transparent;
+  transition: var(--transition);
 }
 
-/* Reset browser default styles */
-input[type="file"] {
-  text-align: center !important;
+.file-input:hover {
+  border-color: var(--accent);
 }
 
 /* Style the file input button */
@@ -206,12 +234,12 @@ input[type="file"] {
   color: white;
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 980px;
   font-family: var(--font-primary);
   font-weight: 500;
   cursor: pointer;
   margin-right: 1rem;
-  transition: all 0.2s ease;
+  transition: var(--transition);
 }
 
 .file-input::-webkit-file-upload-button:hover,
@@ -219,7 +247,7 @@ input[type="file"] {
   background-color: var(--accent-hover);
 }
 
-/* Theme toggle button */
+/* Theme toggle button - Apple-style floating button */
 .theme-toggle {
   position: fixed;
   bottom: 2rem;
@@ -227,21 +255,220 @@ input[type="file"] {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 50%;
-  background-color: var(--accent);
-  color: white;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: var(--transition);
   z-index: 1000;
+  font-size: 1.25rem;
 }
 
 .theme-toggle:hover {
   transform: scale(1.1);
-  background-color: var(--accent-hover);
+  background-color: var(--accent);
+  color: white;
+}
+
+/* Progress text */
+.progress-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Filename display */
+.filename-display {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+/* Control buttons */
+.control-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+/* WPM control */
+.wpm-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.wpm-control label {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* Chapter control */
+.chapter-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.chapter-control label {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* WPM inputs */
+.wpm-inputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 32rem;
+}
+
+/* WPM number input - Apple-style */
+.wpm-number {
+  width: 80px;
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid transparent;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  text-align: center;
+  position: relative;
+  transition: var(--transition);
+}
+
+.wpm-number:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Chrome, Safari, Edge, Opera */
+.wpm-number::-webkit-inner-spin-button,
+.wpm-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  height: 1.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  border-left: 1px solid var(--text-secondary);
+}
+
+/* Input type selector */
+.input-type-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 32rem;
+}
+
+/* Input type select - Apple-style segmented control */
+.input-type-select {
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  outline: none;
+  font-family: var(--font-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 200px;
+  box-shadow: var(--shadow);
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem top 50%;
+  background-size: 0.65rem auto;
+  padding-right: 2.5rem;
+}
+
+.input-type-select:hover {
+  border-color: var(--accent);
+}
+
+.input-type-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+}
+
+.input-type-selector label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Text input form */
+.text-input-form {
+  width: calc(100% - 2rem);
+  max-width: 32rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Text input area - Apple-style textarea */
+.text-input-area {
+  width: 100%;
+  min-height: 150px;
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  font-family: var(--font-primary);
+  font-size: 0.95rem;
+  resize: vertical;
+  transition: var(--transition);
+}
+
+.text-input-area:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+}
+
+.text-input-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.text-input-or {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 /* Mobile responsiveness */
@@ -254,7 +481,7 @@ input[type="file"] {
     padding: 1.5rem 1rem;
     min-height: 6rem;
     margin-bottom: 1rem;
-    width: calc(100% - 2rem);
+    width: calc(100% - 1rem);
     max-width: 32rem;
   }
 
@@ -271,11 +498,6 @@ input[type="file"] {
     opacity: 1;
     color: var(--highlight-word);
     text-shadow: 0 0 1px var(--highlight-word);
-  }
-
-  .last-word {
-    opacity: 1;
-    color: var(--highlight-word); /* Make the last word highlighted */
   }
 
   .controls,
@@ -348,16 +570,38 @@ input[type="file"] {
     font-size: 0.8rem;
   }
 
-  :root {
-    --highlight-word: #ef4444;
+  .input-type-selector {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
-  [data-theme="dark"] {
-    --highlight-word: #dc2626;
+  .input-type-select {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .text-input-form {
+    width: calc(100% - 1rem);
+  }
+
+  .text-input-area {
+    min-height: 120px;
+    padding: 0.75rem;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  .wpm-inputs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .wpm-number {
+    width: 100px;
   }
 }
 
-/* Add even smaller screen adjustments */
+/* Even smaller screen adjustments */
 @media (max-width: 380px) {
   .current-word {
     font-size: clamp(1.25rem, 3.5vw, 2rem);
@@ -370,222 +614,5 @@ input[type="file"] {
   .btn {
     padding: 0.5rem 0.75rem;
     font-size: 0.85rem;
-  }
-}
-
-/* Progress text */
-.progress-text {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
-  font-weight: 500;
-}
-
-/* Filename display */
-.filename-display {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
-  font-weight: 500;
-  margin-top: 0.5rem;
-}
-
-/* Add these new classes */
-.control-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin: 1rem 0;
-}
-
-.wpm-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin: 1rem 0;
-  width: 100%;
-}
-
-.wpm-control label {
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.chapter-control {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.chapter-control label {
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.wpm-inputs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-  max-width: 32rem;
-}
-
-.wpm-number {
-  width: 70px;
-  padding: 0.25rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--text-secondary);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-family: var(--font-primary);
-  text-align: center;
-  position: relative;
-}
-
-/* Chrome, Safari, Edge, Opera */
-.wpm-number::-webkit-inner-spin-button,
-.wpm-number::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  height: 1.5rem;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 0;
-  border-left: 1px solid var(--text-secondary);
-}
-
-@media (max-width: 640px) {
-  .wpm-inputs {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .wpm-number {
-    width: 100px;
-  }
-}
-
-/* Update the input type selector styles */
-.input-type-selector {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  width: 100%;
-  max-width: 32rem;
-}
-
-/* Add text input styles */
-.text-input-form {
-  width: calc(100% - 2rem);
-  max-width: 32rem;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.text-input-area {
-  width: 100%;
-  min-height: 150px;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--text-secondary);
-  font-family: var(--font-primary);
-  font-size: 0.95rem;
-  resize: vertical;
-}
-
-.text-input-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.text-input-or {
-  color: var(--text-secondary);
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 640px) {
-  .input-type-selector {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .input-type-select {
-    width: 100%;
-    max-width: 200px;
-  }
-
-  .text-input-form {
-    width: calc(100% - 2rem);
-  }
-
-  .text-input-area {
-    min-height: 120px;
-    padding: 0.75rem;
-    width: 100%;
-    font-size: 0.9rem;
-  }
-}
-
-.input-type-select {
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--text-secondary);
-  outline: none;
-  font-family: var(--font-primary);
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 200px;
-  box-shadow: var(--shadow);
-}
-
-.input-type-select:hover {
-  border-color: var(--accent);
-}
-
-.input-type-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-hover);
-}
-
-.input-type-selector label {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* Update mobile styles */
-@media (max-width: 640px) {
-  .input-type-selector {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .input-type-select {
-    width: 100%;
-    max-width: 200px;
   }
 }
