@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import FileInput from "./components/FileInput";
 import ReaderControls from "./components/ReaderControls";
 import Library from "./components/Library";
+import StorageInfo from "./components/StorageInfo";
 import { Chapter, InputType, Book } from "./types/reader";
 import { createBookFromEpub } from "./helpers/epubHandler";
 import {
@@ -15,8 +16,14 @@ import {
   saveWordsForBook,
   loadWordsForBook,
   createErrorWords,
+  isStorageAvailable,
+  debugStorageForBook,
+  checkStorageUsage,
+  cleanupStorage,
+  clearWordsForBook,
 } from "./helpers/wordStorage";
 import "./SpeedReader.css";
+import "./styles/StorageInfo.css";
 // keep an eye on the chapter order
 // far off TODO: add a local TTS thingy with kokoro
 
@@ -92,11 +99,8 @@ const SpeedReader = () => {
       if (currentBookId) {
         updateBookProgress(currentBookId, currentWordIndex);
 
-        // Save words for this specific book
-        localStorage.setItem(
-          `speedReaderWords_${currentBookId}`,
-          JSON.stringify(words)
-        );
+        // Save words for this specific book using our helper
+        saveWordsForBook(currentBookId, words);
       }
     }
   }, [isPlaying, currentWordIndex, words, currentBookId]);
@@ -176,6 +180,29 @@ const SpeedReader = () => {
       data.words.length
     );
 
+    // Check if localStorage is available
+    if (!isStorageAvailable()) {
+      alert(
+        "Warning: Your browser's localStorage is not available or is full. Your reading progress and books may not be saved."
+      );
+      console.error("localStorage is not available");
+    }
+
+    // Check storage usage
+    const storageUsage = checkStorageUsage();
+    console.log(
+      `Storage usage: ${storageUsage.usedPercent}% (${(storageUsage.used / 1024).toFixed(1)}KB used)`
+    );
+
+    // Attempt cleanup if storage is getting full
+    if (storageUsage.usedPercent > 70) {
+      console.log("Storage is getting full, attempting cleanup...");
+      const cleaned = cleanupStorage();
+      if (cleaned) {
+        console.log("Successfully cleaned up some storage space");
+      }
+    }
+
     // Reset the current book first to avoid state contamination
     setCurrentBookId(null);
 
@@ -206,6 +233,17 @@ const SpeedReader = () => {
         const wordsSaved = saveWordsForBook(book.id, data.words);
         if (!wordsSaved) {
           console.error("Failed to save words for book ID:", book.id);
+
+          // Check if we're out of storage space
+          const currentStorage = checkStorageUsage();
+          if (currentStorage.usedPercent > 90) {
+            alert(
+              "Warning: Your browser's localStorage is almost full. You may need to remove some books to add new ones."
+            );
+          }
+        } else {
+          // Debug storage after saving
+          debugStorageForBook(book.id);
         }
 
         // Add book to library
@@ -256,6 +294,17 @@ const SpeedReader = () => {
             "Failed to save words for fallback book ID:",
             fallbackBook.id
           );
+
+          // Check if we're out of storage space
+          const currentStorage = checkStorageUsage();
+          if (currentStorage.usedPercent > 90) {
+            alert(
+              "Warning: Your browser's localStorage is almost full. You may need to remove some books to add new ones."
+            );
+          }
+        } else {
+          // Debug storage after saving
+          debugStorageForBook(fallbackBook.id);
         }
 
         // Add fallback book to library
@@ -351,6 +400,10 @@ const SpeedReader = () => {
 
     if (inputType === InputType.EPUB) {
       // For EPUB mode, clear current book ID and switch to library view
+      if (currentBookId) {
+        // Clear words for the current book
+        clearWordsForBook(currentBookId);
+      }
       localStorage.removeItem("speedReaderCurrentBookId");
       setCurrentBookId(null);
       setCurrentView("library");
@@ -497,6 +550,9 @@ const SpeedReader = () => {
         return;
       }
 
+      // Debug storage for this book
+      debugStorageForBook(bookId);
+
       // Store the ID for the currently selected book
       setCurrentBookId(bookId);
       localStorage.setItem("speedReaderCurrentBookId", bookId);
@@ -551,6 +607,14 @@ const SpeedReader = () => {
         setCurrentView("reader");
       } else {
         console.warn(`Failed to load words for book ID: ${bookId}`);
+
+        // Check whether localStorage is available before attempting re-upload
+        if (!isStorageAvailable()) {
+          alert(
+            "Warning: Your browser's localStorage is not available. This may be why the book content couldn't be loaded."
+          );
+        }
+
         promptForReupload(book);
       }
     } catch (error) {
@@ -631,6 +695,8 @@ const SpeedReader = () => {
             {currentView === "reader" ? "View Library" : "Back to Reader"}
           </button>
         )}
+
+        <StorageInfo showDetailed={false} />
       </div>
 
       {inputType === InputType.EPUB ? (
@@ -684,6 +750,7 @@ const SpeedReader = () => {
                 inputType={InputType.EPUB}
                 onFileProcessed={handleFileProcessed}
               />
+              <StorageInfo showDetailed={true} />
             </div>
           </>
         )

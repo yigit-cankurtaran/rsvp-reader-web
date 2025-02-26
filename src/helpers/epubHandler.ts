@@ -242,6 +242,31 @@ export const extractEpubContent = async (file: File): Promise<{
   }
 };
 
+// Helper function to get text content from multiple selectors
+function getTextContentFromSelectors(doc: Document, selectors: string[]): string {
+  for (const selector of selectors) {
+    try {
+      const element = doc.querySelector(selector);
+      if (element && element.textContent) {
+        return element.textContent.trim();
+      }
+    } catch (e) {
+      // Continue to next selector if this one fails
+    }
+  }
+  return "";
+}
+
+// Helper function to convert blob to data URL
+async function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export const extractEpubMetadata = async (file: File): Promise<{
   title: string;
   author: string;
@@ -337,7 +362,8 @@ export const extractEpubMetadata = async (file: File): Promise<{
           
           if (coverFile) {
             const coverBlob = await coverFile.async("blob");
-            coverUrl = URL.createObjectURL(coverBlob);
+            // Convert blob to data URL instead of object URL
+            coverUrl = await blobToDataURL(coverBlob);
             break;
           }
         }
@@ -360,7 +386,8 @@ export const extractEpubMetadata = async (file: File): Promise<{
               
               if (coverFile) {
                 const coverBlob = await coverFile.async("blob");
-                coverUrl = URL.createObjectURL(coverBlob);
+                // Convert blob to data URL instead of object URL
+                coverUrl = await blobToDataURL(coverBlob);
               }
             }
           }
@@ -381,7 +408,8 @@ export const extractEpubMetadata = async (file: File): Promise<{
       
       if (coverImage) {
         const coverBlob = await coverImage.async("blob");
-        coverUrl = URL.createObjectURL(coverBlob);
+        // Convert blob to data URL instead of object URL
+        coverUrl = await blobToDataURL(coverBlob);
       }
     }
     
@@ -395,21 +423,6 @@ export const extractEpubMetadata = async (file: File): Promise<{
     };
   }
 };
-
-// Helper function to get text content from multiple selectors
-function getTextContentFromSelectors(doc: Document, selectors: string[]): string {
-  for (const selector of selectors) {
-    try {
-      const element = doc.querySelector(selector);
-      if (element && element.textContent) {
-        return element.textContent.trim();
-      }
-    } catch (e) {
-      // Continue to next selector if this one fails
-    }
-  }
-  return "";
-}
 
 export const createBookFromEpub = async (file: File, epubContent: { text: string; chapters: Chapter[] }): Promise<Book> => {
   try {
