@@ -3,13 +3,19 @@ import JSZip from "jszip";
 import FileInput from "./components/FileInput";
 import ReaderControls from "./components/ReaderControls";
 import Library from "./components/Library";
-import { Chapter, InputType } from "./types/reader";
+import { Chapter, InputType, Book } from "./types/reader";
 import { createBookFromEpub } from "./helpers/epubHandler";
 import {
   addBook,
   updateBookProgress,
   getBookById,
 } from "./helpers/libraryManager";
+import { processText } from "./helpers/textProcessor";
+import {
+  saveWordsForBook,
+  loadWordsForBook,
+  createErrorWords,
+} from "./helpers/wordStorage";
 import "./SpeedReader.css";
 // keep an eye on the chapter order
 // far off TODO: add a local TTS thingy with kokoro
@@ -69,6 +75,9 @@ const SpeedReader = () => {
   const [currentBookId, setCurrentBookId] = useState<string | null>(() => {
     return localStorage.getItem("speedReaderCurrentBookId");
   });
+
+  // Add state to force library refresh when new books are added
+  const [libraryKey, setLibraryKey] = useState<number>(Date.now());
 
   const msPerWord = Math.floor(60000 / wpm);
 
@@ -160,21 +169,30 @@ const SpeedReader = () => {
     },
     file?: File
   ) => {
+    console.log(
+      "Processing file:",
+      data.fileName,
+      "Words count:",
+      data.words.length
+    );
+
+    // Reset the current book first to avoid state contamination
+    setCurrentBookId(null);
+
+    // Set new file data
     setText(data.text);
     setWords(data.words);
     setFileName(data.fileName);
-    localStorage.setItem("speedReaderWords", JSON.stringify(data.words));
-    localStorage.setItem("speedReaderProgress", "0");
-    localStorage.setItem("speedReaderFileName", data.fileName);
+
+    // Reset current word index for new book
     setCurrentWordIndex(0);
     setIsPlaying(false);
 
+    // Only update chapters if they exist
     if (data.chapters) {
       setChapters(data.chapters);
-      localStorage.setItem(
-        "speedReaderChapters",
-        JSON.stringify(data.chapters)
-      );
+    } else {
+      setChapters([]);
     }
 
     // If it's an EPUB file, add it to the library
@@ -182,18 +200,95 @@ const SpeedReader = () => {
       try {
         const epubContent = { text: data.text, chapters: data.chapters || [] };
         const book = await createBookFromEpub(file, epubContent);
-        addBook(book);
-        setCurrentBookId(book.id);
-        localStorage.setItem("speedReaderCurrentBookId", book.id);
 
-        // Save words for this specific book
+        // Explicitly save the words for this book BEFORE adding it to the library
+        // This is a critical step to fix the issue
+        const wordsSaved = saveWordsForBook(book.id, data.words);
+        if (!wordsSaved) {
+          console.error("Failed to save words for book ID:", book.id);
+        }
+
+        // Add book to library
+        addBook(book);
+
+        // Force library refresh by updating the key
+        setLibraryKey(Date.now());
+
+        // Set the current book ID to the new book
+        setCurrentBookId(book.id);
+
+        // Save book-specific data in localStorage
+        localStorage.setItem("speedReaderCurrentBookId", book.id);
+        localStorage.setItem("speedReaderProgress", "0");
+        localStorage.setItem("speedReaderFileName", data.fileName);
         localStorage.setItem(
-          `speedReaderWords_${book.id}`,
-          JSON.stringify(data.words)
+          "speedReaderChapters",
+          JSON.stringify(data.chapters || [])
+        );
+        localStorage.setItem("speedReaderCurrentChapter", "0");
+
+        console.log(
+          "Book successfully added to library:",
+          book.title,
+          "with ID:",
+          book.id
         );
       } catch (error) {
         console.error("Error adding book to library:", error);
+
+        // Even if there was an error, still create a fallback book
+        const fallbackBook = {
+          id: `book_${Date.now()}`,
+          fileName: file.name,
+          title: file.name.replace(/\.epub$/i, "").replace(/_/g, " "),
+          author: "Unknown",
+          coverUrl: null,
+          totalWords: data.words.length,
+          currentWordIndex: 0,
+          lastReadDate: new Date().toISOString(),
+          chapters: data.chapters || [],
+        };
+
+        // Save the words for the fallback book BEFORE adding it to the library
+        const wordsSaved = saveWordsForBook(fallbackBook.id, data.words);
+        if (!wordsSaved) {
+          console.error(
+            "Failed to save words for fallback book ID:",
+            fallbackBook.id
+          );
+        }
+
+        // Add fallback book to library
+        addBook(fallbackBook);
+
+        // Force library refresh
+        setLibraryKey(Date.now());
+
+        // Set current book ID to fallback book
+        setCurrentBookId(fallbackBook.id);
+
+        // Save fallback book data
+        localStorage.setItem("speedReaderCurrentBookId", fallbackBook.id);
+        localStorage.setItem("speedReaderProgress", "0");
+        localStorage.setItem("speedReaderFileName", data.fileName);
+        localStorage.setItem(
+          "speedReaderChapters",
+          JSON.stringify(data.chapters || [])
+        );
+        localStorage.setItem("speedReaderCurrentChapter", "0");
+
+        console.log("Fallback book added to library with ID:", fallbackBook.id);
       }
+    } else {
+      // For TEXT mode, just update localStorage without book ID
+      localStorage.setItem("speedReaderWords", JSON.stringify(data.words));
+      localStorage.setItem("speedReaderProgress", "0");
+      localStorage.setItem("speedReaderFileName", data.fileName);
+      localStorage.setItem(
+        "speedReaderChapters",
+        JSON.stringify(data.chapters || [])
+      );
+      localStorage.setItem("speedReaderCurrentChapter", "0");
     }
 
     // Switch to reader view
@@ -394,74 +489,127 @@ const SpeedReader = () => {
   // Add handler for book selection from library
   const handleSelectBook = async (bookId: string) => {
     try {
+      console.log(`Selecting book with ID: ${bookId}`);
       const book = getBookById(bookId);
-      if (!book) return;
+      if (!book) {
+        console.error("Book not found:", bookId);
+        alert("Error: Book not found in library");
+        return;
+      }
 
+      // Store the ID for the currently selected book
       setCurrentBookId(bookId);
       localStorage.setItem("speedReaderCurrentBookId", bookId);
+      console.log("Book found:", book.title);
 
-      // Load book data
+      // Load book metadata
       setFileName(book.fileName);
       localStorage.setItem("speedReaderFileName", book.fileName);
 
       // Load chapters
-      setChapters(book.chapters);
+      setChapters(book.chapters || []);
       localStorage.setItem(
         "speedReaderChapters",
-        JSON.stringify(book.chapters)
+        JSON.stringify(book.chapters || [])
       );
 
       // Set current word index to saved progress
-      setCurrentWordIndex(book.currentWordIndex);
+      setCurrentWordIndex(book.currentWordIndex || 0);
       localStorage.setItem(
         "speedReaderProgress",
-        book.currentWordIndex.toString()
+        (book.currentWordIndex || 0).toString()
       );
 
       // Update current chapter based on word index
-      const chapterIndex = book.chapters.findIndex(
-        (chapter) =>
-          book.currentWordIndex >= chapter.startIndex &&
-          book.currentWordIndex <= chapter.endIndex
+      let chapterIndex = 0;
+      if (book.chapters && book.chapters.length > 0) {
+        chapterIndex = book.chapters.findIndex(
+          (chapter) =>
+            book.currentWordIndex >= chapter.startIndex &&
+            book.currentWordIndex <= chapter.endIndex
+        );
+
+        // If no matching chapter found, default to first chapter
+        if (chapterIndex === -1) chapterIndex = 0;
+      }
+
+      setCurrentChapter(chapterIndex);
+      localStorage.setItem(
+        "speedReaderCurrentChapter",
+        chapterIndex.toString()
       );
 
-      if (chapterIndex !== -1) {
-        setCurrentChapter(chapterIndex);
-        localStorage.setItem(
-          "speedReaderCurrentChapter",
-          chapterIndex.toString()
-        );
-      }
+      // Load words from localStorage using our helper function
+      console.log(`Loading words for book ID: ${bookId}`);
+      const loadedWords = loadWordsForBook(bookId);
 
-      // Load words from localStorage if available
-      const savedWords = localStorage.getItem(`speedReaderWords_${bookId}`);
-      if (savedWords) {
-        setWords(JSON.parse(savedWords));
+      if (loadedWords) {
+        setWords(loadedWords);
+        console.log(`Successfully loaded ${loadedWords.length} words for book`);
+
+        // Switch to reader view
+        setCurrentView("reader");
       } else {
-        // If words aren't cached, we need to reload the file
-        // This is a limitation of the current implementation
-        // In a real app, we would store the processed text in IndexedDB
-        alert("Please re-upload the EPUB file to continue reading.");
-        return;
+        console.warn(`Failed to load words for book ID: ${bookId}`);
+        promptForReupload(book);
       }
-
-      // Switch to reader view
-      setCurrentView("reader");
     } catch (error) {
       console.error("Error loading book:", error);
       alert("Error loading book. Please try again.");
     }
   };
 
+  // Helper to show re-upload message
+  const promptForReupload = (book: Book) => {
+    console.log(`Creating error message for book: ${book.id}`);
+
+    // Use our new helper to create error words
+    const errorWords = createErrorWords(book.id);
+
+    // Set these words in state
+    setWords(errorWords);
+    console.log(`Created error words for book ID: ${book.id}`);
+
+    // Switch to reader view to show the message
+    setCurrentView("reader");
+
+    // Show dialog to user with a small delay to ensure UI updates first
+    setTimeout(() => {
+      alert(
+        "The content for this book is not available in storage. Please re-upload the EPUB file to read it again. Your reading progress has been preserved."
+      );
+    }, 100);
+  };
+
   // Add a toggle for switching between reader and library views
   const toggleView = () => {
     const newView = currentView === "reader" ? "library" : "reader";
-    setCurrentView(newView);
 
     // Save progress when switching to library
     if (newView === "library" && currentBookId) {
+      // Update book progress in the library
       updateBookProgress(currentBookId, currentWordIndex);
+
+      // Refresh the library to show updated progress
+      setLibraryKey(Date.now());
+
+      // Log state information for debugging
+      console.log(
+        `Switching to library view. Current book ID: ${currentBookId}, Progress: ${currentWordIndex}`
+      );
+    } else if (newView === "reader") {
+      // Verify we have a valid book to read when going back to reader
+      if (!currentBookId) {
+        console.log("No book selected, remaining in library view");
+        alert("Please select a book to read first.");
+        return;
+      }
+      console.log(
+        `Switching to reader view. Current book ID: ${currentBookId}`
+      );
     }
+
+    setCurrentView(newView);
   };
 
   return (
@@ -528,7 +676,7 @@ const SpeedReader = () => {
         ) : (
           // Library View for EPUB
           <>
-            <Library onSelectBook={handleSelectBook} />
+            <Library key={libraryKey} onSelectBook={handleSelectBook} />
 
             <div className="library-upload-container">
               <h3>Add a new book</h3>
