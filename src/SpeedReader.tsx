@@ -85,14 +85,12 @@ const SpeedReader = () => {
     const savedType = localStorage.getItem("speedReaderInputType");
     const isEpub = savedType === InputType.EPUB || savedType === null;
 
-    if (isEpub) {
-      // Show reader only if we have a book loaded
-      return localStorage.getItem("speedReaderCurrentBookId")
-        ? "reader"
-        : "library";
+    // For first-time users or EPUB mode with no book, show library
+    if (isEpub && !localStorage.getItem("speedReaderCurrentBookId")) {
+      return "library";
     }
 
-    // For TEXT mode, always default to reader view
+    // For TEXT mode or if a book is already loaded, show reader view
     return "reader";
   });
 
@@ -115,6 +113,27 @@ const SpeedReader = () => {
         // Update state with settings from IndexedDB
         setWpm(settings.wpm);
         setIsDarkMode(settings.theme === "dark");
+
+        // Check localStorage first for input type (for backward compatibility)
+        const localStorageInputType = localStorage.getItem(
+          "speedReaderInputType"
+        );
+
+        if (localStorageInputType) {
+          // If localStorage has a value, use it and update IndexedDB to match
+          const inputTypeValue = localStorageInputType as InputType;
+          setInputType(inputTypeValue);
+
+          // Make sure IndexedDB matches localStorage
+          if (settings.inputType !== inputTypeValue) {
+            saveAppSettings({ inputType: inputTypeValue });
+          }
+        } else {
+          // If no localStorage value, use IndexedDB value and update localStorage
+          const newInputType = settings.inputType as InputType;
+          setInputType(newInputType);
+          localStorage.setItem("speedReaderInputType", newInputType);
+        }
 
         // Set input type and update view accordingly
         const newInputType = settings.inputType as InputType;
@@ -803,6 +822,22 @@ const SpeedReader = () => {
 
     setCurrentView(newView);
   };
+
+  // Replace the existing useEffect for first load with this:
+  useEffect(() => {
+    // Use a different flag specifically for first-time user detection
+    const hasVisitedBefore = localStorage.getItem("speedReaderFirstVisit");
+
+    if (!hasVisitedBefore) {
+      // First time user - set EPUB mode and library view
+      setInputType(InputType.EPUB);
+      localStorage.setItem("speedReaderInputType", InputType.EPUB);
+      setCurrentView("library");
+
+      // Mark that we've set initial preferences
+      localStorage.setItem("speedReaderFirstVisit", "true");
+    }
+  }, []);
 
   return (
     <div className="reader-container">
