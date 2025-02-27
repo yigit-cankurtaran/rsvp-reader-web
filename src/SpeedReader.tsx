@@ -65,20 +65,35 @@ const SpeedReader = () => {
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem("speedReaderTheme");
+    // If there's no saved preference, use system preference
+    if (savedTheme === null) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
     return savedTheme === "dark";
   });
 
   const [inputType, setInputType] = useState<InputType>(() => {
     const savedType = localStorage.getItem("speedReaderInputType");
-    return (savedType as InputType) || InputType.TEXT;
+    return (savedType as InputType) || InputType.EPUB; // Default to EPUB instead of TEXT
   });
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
 
   // Add state for current view (reader or library)
   const [currentView, setCurrentView] = useState<"reader" | "library">(() => {
-    // If we have a book loaded, show reader, otherwise show library
-    return words.length > 0 ? "reader" : "library";
+    // If we're in EPUB mode and no book is loaded, show library
+    const savedType = localStorage.getItem("speedReaderInputType");
+    const isEpub = savedType === InputType.EPUB || savedType === null;
+
+    if (isEpub) {
+      // Show reader only if we have a book loaded
+      return localStorage.getItem("speedReaderCurrentBookId")
+        ? "reader"
+        : "library";
+    }
+
+    // For TEXT mode, always default to reader view
+    return "reader";
   });
 
   // Add state for current book ID
@@ -100,12 +115,56 @@ const SpeedReader = () => {
         // Update state with settings from IndexedDB
         setWpm(settings.wpm);
         setIsDarkMode(settings.theme === "dark");
-        setInputType(settings.inputType as InputType);
+
+        // Set input type and update view accordingly
+        const newInputType = settings.inputType as InputType;
+        setInputType(newInputType);
+
+        // If in EPUB mode and no book is selected, force library view
+        if (newInputType === InputType.EPUB) {
+          const hasCurrentBook = !!localStorage.getItem(
+            "speedReaderCurrentBookId"
+          );
+          if (!hasCurrentBook) {
+            setCurrentView("library");
+          }
+        } else {
+          // In TEXT mode, always default to reader view
+          setCurrentView("reader");
+        }
+
+        // Save theme to localStorage if it doesn't exist
+        if (localStorage.getItem("speedReaderTheme") === null) {
+          localStorage.setItem("speedReaderTheme", settings.theme);
+        }
+
+        // Save inputType to localStorage if it doesn't exist
+        if (localStorage.getItem("speedReaderInputType") === null) {
+          localStorage.setItem("speedReaderInputType", settings.inputType);
+        }
 
         console.log("App settings loaded from IndexedDB");
       } catch (error) {
         console.error("Error loading app settings from IndexedDB:", error);
-        // No need to do anything - we're already using localStorage fallbacks
+
+        // If there's an error, make sure default values are saved
+        if (localStorage.getItem("speedReaderTheme") === null) {
+          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+            .matches
+            ? "dark"
+            : "light";
+          localStorage.setItem("speedReaderTheme", systemTheme);
+
+          // Also save to IndexedDB
+          saveAppSettings({ theme: systemTheme });
+        }
+
+        if (localStorage.getItem("speedReaderInputType") === null) {
+          localStorage.setItem("speedReaderInputType", InputType.EPUB);
+
+          // Also save to IndexedDB
+          saveAppSettings({ inputType: InputType.EPUB });
+        }
       }
     };
 

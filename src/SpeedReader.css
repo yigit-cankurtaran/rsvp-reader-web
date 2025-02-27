@@ -196,55 +196,49 @@ body {
 
 /* File input styling */
 .file-control-wrapper {
+  margin: 1rem 0;
   display: flex;
   justify-content: center;
-  width: 100%;
-  padding: 0;
 }
 
 .file-control {
-  width: 100%;
-  max-width: 32rem;
-  display: flex;
-  justify-content: center;
-  padding: 0;
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  cursor: pointer;
 }
 
 .file-input {
-  width: 100%;
-  max-width: 32rem;
-  display: flex;
-  justify-content: center;
-  background-color: var(--bg-secondary);
-  padding: 0.75rem;
-  border-radius: var(--border-radius);
-  border: 1px solid transparent;
-  transition: var(--transition);
-}
-
-.file-input:hover {
-  border-color: var(--accent);
-}
-
-/* Style the file input button */
-.file-input::-webkit-file-upload-button,
-.file-input::file-selector-button {
-  -webkit-appearance: none;
-  background-color: var(--accent);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 980px;
-  font-family: var(--font-primary);
-  font-weight: 500;
+  position: absolute;
+  font-size: 100px;
+  opacity: 0;
+  right: 0;
+  top: 0;
   cursor: pointer;
-  margin-right: 1rem;
-  transition: var(--transition);
 }
 
-.file-input::-webkit-file-upload-button:hover,
-.file-input::file-selector-button:hover {
-  background-color: var(--accent-hover);
+.file-input-label {
+  display: inline-block;
+  padding: 8px 20px;
+  background-color: var(--primary-color, #007bff);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.file-input-label:hover {
+  background-color: var(--primary-color-hover, #0069d9);
+}
+
+/* Dark mode file input */
+[data-theme="dark"] .file-input-label {
+  background-color: var(--primary-color, #2196f3);
+}
+
+[data-theme="dark"] .file-input-label:hover {
+  background-color: var(--primary-color-hover, #1976d2);
 }
 
 /* Theme toggle button - Apple-style floating button */

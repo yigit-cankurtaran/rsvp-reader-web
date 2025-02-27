@@ -1,14 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { extractEpubContent } from "../helpers/epubHandler";
 import { processText } from "../helpers/textProcessor";
 import { FileInputProps, InputType } from "../types/reader";
 import JSZip from "jszip";
+import logger from "../helpers/logger";
+
+// Create a module-specific logger
+const log = logger.forModule("FileInput");
 
 const FileInput: React.FC<FileInputProps> = ({
   inputType,
   onFileProcessed,
 }) => {
   const [textInput, setTextInput] = useState("");
+
+  // Debug log on component mount to verify props
+  useEffect(() => {
+    log.debug(`FileInput mounted with inputType: ${inputType}`);
+  }, [inputType]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -26,7 +35,7 @@ const FileInput: React.FC<FileInputProps> = ({
           }
 
           try {
-            console.log(
+            log.info(
               `Processing EPUB file: ${file.name} (${Math.round(file.size / 1024)} KB)`
             );
             const epubContent = await extractEpubContent(file);
@@ -49,7 +58,7 @@ const FileInput: React.FC<FileInputProps> = ({
               file
             );
           } catch (epubError) {
-            console.error("Error extracting EPUB content:", epubError);
+            log.error("Error extracting EPUB content:", epubError);
 
             // If there's an error, try a different approach
             // Read the file as an ArrayBuffer and check if it's a valid zip file
@@ -109,7 +118,7 @@ const FileInput: React.FC<FileInputProps> = ({
           break;
       }
     } catch (error) {
-      console.error("Error reading file:", error);
+      log.error("Error reading file:", error);
       alert(`Error reading ${inputType} file. Please try another file.`);
 
       // Final fallback for EPUB files
@@ -183,6 +192,7 @@ const FileInput: React.FC<FileInputProps> = ({
           onChange={handleFileUpload}
           className="file-input"
         />
+        <div className="file-input-label">Choose File</div>
       </div>
     </div>
   );
