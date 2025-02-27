@@ -183,14 +183,23 @@ export async function addOrUpdateBook(book: Book): Promise<string> {
 }
 
 export async function removeBookFromDB(id: string): Promise<void> {
-  // Remove book
-  await db.books.delete(id);
-  
-  // Also remove associated word chunks
-  await db.wordChunks.where('bookId').equals(id).delete();
-  
-  // And book progress
-  await db.bookProgress.delete(id);
+  // Start a transaction to ensure all deletions happen together
+  await db.transaction('rw', [db.books, db.wordChunks, db.bookProgress], async () => {
+    // Remove from books table
+    await db.books.delete(id);
+    
+    // Remove all associated word chunks
+    const chunksDeleted = await db.wordChunks.where('bookId').equals(id).delete();
+    console.log(`Deleted ${chunksDeleted} word chunks for book ID ${id}`);
+    
+    // Remove book progress
+    await db.bookProgress.delete(id);
+    
+    // Check for and remove any other orphaned data related to this book
+    // For example, if we have other tables in the future, clean those up too
+    
+    console.log(`Successfully removed book ID ${id} and all related data from IndexedDB`);
+  });
 }
 
 export async function updateBookProgressInDB(id: string, currentWordIndex: number): Promise<void> {
