@@ -7,13 +7,11 @@
   position: sticky;
   top: 0;
   z-index: 1000;
-  padding: 15px 0;
+  padding: 15px 20px;
   margin-bottom: 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: 20px;
-  padding-right: 20px;
 }
 
 .app-navigation .nav-links {
@@ -29,6 +27,8 @@
 .app-navigation .nav-controls {
   display: flex;
   align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .app-navigation li {
@@ -89,6 +89,11 @@
 
   .app-navigation .nav-links {
     gap: 10px;
+  }
+
+  .app-navigation .nav-controls {
+    margin-top: 5px;
+    padding: 5px 0;
   }
 
   .app-navigation a {
