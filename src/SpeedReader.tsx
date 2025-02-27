@@ -23,10 +23,27 @@ import {
 import { saveAppSettings, getAppSettings } from "./helpers/dexieDB";
 import "./SpeedReader.css";
 import "./styles/StorageInfo.css";
+import { processText } from "./helpers/textProcessor";
 // keep an eye on the chapter order
 // far off TODO: add a local TTS thingy with kokoro
 
-const SpeedReader = () => {
+interface SpeedReaderProps {
+  viewMode?: "reader" | "library" | "text";
+  onNavigateToLibrary?: () => void;
+  onNavigateToReader?: (bookId?: string) => void;
+  initialBookId?: string | null;
+  initialText?: string;
+  initialWords?: string[];
+}
+
+const SpeedReader: React.FC<SpeedReaderProps> = ({
+  viewMode = "reader",
+  onNavigateToLibrary,
+  onNavigateToReader,
+  initialBookId = null,
+  initialText,
+  initialWords,
+}) => {
   // Development mode detection
   const isDevelopmentMode = import.meta.env.DEV === true;
 
@@ -79,20 +96,15 @@ const SpeedReader = () => {
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
 
-  // Add state for current view (reader or library)
-  const [currentView, setCurrentView] = useState<"reader" | "library">(() => {
-    // If we're in EPUB mode and no book is loaded, show library
-    const savedType = localStorage.getItem("speedReaderInputType");
-    const isEpub = savedType === InputType.EPUB || savedType === null;
+  // Replace the currentView state with the viewMode prop
+  const [currentView, setCurrentView] = useState<"reader" | "library" | "text">(
+    viewMode
+  );
 
-    // For first-time users or EPUB mode with no book, show library
-    if (isEpub && !localStorage.getItem("speedReaderCurrentBookId")) {
-      return "library";
-    }
-
-    // For TEXT mode or if a book is already loaded, show reader view
-    return "reader";
-  });
+  // Use effect to update currentView when viewMode prop changes
+  useEffect(() => {
+    setCurrentView(viewMode);
+  }, [viewMode]);
 
   // Add state for current book ID
   const [currentBookId, setCurrentBookId] = useState<string | null>(() => {
@@ -189,11 +201,22 @@ const SpeedReader = () => {
 
     loadSettings();
 
+    // If initial text and words are provided, use them directly (for TextPage)
+    if (initialText && initialWords && initialWords.length > 0) {
+      console.log("Using provided initialText and initialWords");
+      setText(initialText);
+      setWords(initialWords);
+      setCurrentWordIndex(0);
+      setFileName("Text Input");
+      setCurrentView("reader");
+      return;
+    }
+
     // If there's a current book, load its words
     if (currentBookId) {
       loadCurrentBookWords();
     }
-  }, []);
+  }, [initialText, initialWords]);
 
   // Load words for current book from IndexedDB
   const loadCurrentBookWords = async () => {
@@ -213,24 +236,19 @@ const SpeedReader = () => {
     }
   };
 
-  const togglePlay = useCallback(async () => {
-    const newPlayState = !isPlaying;
-    setIsPlaying(newPlayState);
+  const togglePlay = async () => {
+    setIsPlaying((prev) => !prev);
+    if (!isPlaying) {
+      if (currentWordIndex >= words.length - 1) {
+        // If we're at the end, start over
+        setCurrentWordIndex(0);
+      }
 
-    if (!newPlayState) {
-      // Save progress in localStorage for backward compatibility
-      localStorage.setItem("speedReaderProgress", currentWordIndex.toString());
-      localStorage.setItem("speedReaderWords", JSON.stringify(words));
-
-      // Update book progress in library
       if (currentBookId) {
         await updateBookProgress(currentBookId, currentWordIndex);
-
-        // Save words for this specific book using our helper
-        await saveWordsForBook(currentBookId, words);
       }
     }
-  }, [isPlaying, currentWordIndex, words, currentBookId]);
+  };
 
   // Update WPM handler to save setting
   const handleWpmChange = useCallback(async (newWpm: number) => {
@@ -339,27 +357,42 @@ const SpeedReader = () => {
       }
     }
 
-    // Reset the current book first to avoid state contamination
-    setCurrentBookId(null);
+    // For TEXT mode, process differently than EPUB
+    if (inputType === InputType.TEXT) {
+      // Reset the current book first to avoid state contamination
+      setCurrentBookId(null);
 
-    // Set new file data
-    setText(data.text);
-    setWords(data.words);
-    setFileName(data.fileName);
+      // Set new file data
+      setText(data.text);
+      setWords(data.words);
+      setFileName(data.fileName);
 
-    // Reset current word index for new book
-    setCurrentWordIndex(0);
-    setIsPlaying(false);
+      // Reset current word index for new text
+      setCurrentWordIndex(0);
+      setIsPlaying(false);
 
-    // Only update chapters if they exist
-    if (data.chapters) {
-      setChapters(data.chapters);
-    } else {
-      setChapters([]);
+      // Only update chapters if they exist
+      if (data.chapters) {
+        setChapters(data.chapters);
+      } else {
+        setChapters([]);
+      }
+
+      // For TEXT mode, just update localStorage without book ID
+      localStorage.setItem("speedReaderWords", JSON.stringify(data.words));
+      localStorage.setItem("speedReaderProgress", "0");
+      localStorage.setItem("speedReaderFileName", data.fileName);
+      localStorage.setItem(
+        "speedReaderChapters",
+        JSON.stringify(data.chapters || [])
+      );
+      localStorage.setItem("speedReaderCurrentChapter", "0");
+
+      // Switch to reader view for TEXT mode
+      setCurrentView("reader");
     }
-
-    // If it's an EPUB file, add it to the library
-    if (inputType === InputType.EPUB && file) {
+    // For EPUB mode
+    else if (inputType === InputType.EPUB && file) {
       try {
         const epubContent = { text: data.text, chapters: data.chapters || [] };
         const book = await createBookFromEpub(file, epubContent);
@@ -387,19 +420,6 @@ const SpeedReader = () => {
 
         // Force library refresh by updating the key
         setLibraryKey(Date.now());
-
-        // Set the current book ID to the new book
-        setCurrentBookId(book.id);
-
-        // Save book-specific data in localStorage
-        localStorage.setItem("speedReaderCurrentBookId", book.id);
-        localStorage.setItem("speedReaderProgress", "0");
-        localStorage.setItem("speedReaderFileName", data.fileName);
-        localStorage.setItem(
-          "speedReaderChapters",
-          JSON.stringify(data.chapters || [])
-        );
-        localStorage.setItem("speedReaderCurrentChapter", "0");
 
         console.log(
           "Book successfully added to library:",
@@ -449,35 +469,9 @@ const SpeedReader = () => {
         // Force library refresh
         setLibraryKey(Date.now());
 
-        // Set current book ID to fallback book
-        setCurrentBookId(fallbackBook.id);
-
-        // Save fallback book data
-        localStorage.setItem("speedReaderCurrentBookId", fallbackBook.id);
-        localStorage.setItem("speedReaderProgress", "0");
-        localStorage.setItem("speedReaderFileName", data.fileName);
-        localStorage.setItem(
-          "speedReaderChapters",
-          JSON.stringify(data.chapters || [])
-        );
-        localStorage.setItem("speedReaderCurrentChapter", "0");
-
         console.log("Fallback book added to library with ID:", fallbackBook.id);
       }
-    } else {
-      // For TEXT mode, just update localStorage without book ID
-      localStorage.setItem("speedReaderWords", JSON.stringify(data.words));
-      localStorage.setItem("speedReaderProgress", "0");
-      localStorage.setItem("speedReaderFileName", data.fileName);
-      localStorage.setItem(
-        "speedReaderChapters",
-        JSON.stringify(data.chapters || [])
-      );
-      localStorage.setItem("speedReaderCurrentChapter", "0");
     }
-
-    // Switch to reader view
-    setCurrentView("reader");
   };
 
   // Add a function to update current chapter based on word index
@@ -584,10 +578,16 @@ const SpeedReader = () => {
   ]);
 
   useEffect(() => {
+    // Set the theme on both documentElement and for CSS variables
     document.documentElement.setAttribute(
       "data-theme",
       isDarkMode ? "dark" : "light"
     );
+
+    // Also add a class to the speed-reader-container
+    document.documentElement.classList.toggle("dark-mode", isDarkMode);
+
+    // Save to localStorage
     localStorage.setItem("speedReaderTheme", isDarkMode ? "dark" : "light");
 
     // Also save to IndexedDB
@@ -750,8 +750,12 @@ const SpeedReader = () => {
         setWords(loadedWords);
         console.log(`Successfully loaded ${loadedWords.length} words for book`);
 
-        // Switch to reader view
-        setCurrentView("reader");
+        // After loading the book, navigate to reader view
+        if (onNavigateToReader) {
+          onNavigateToReader(bookId);
+        } else {
+          setCurrentView("reader");
+        }
       } else {
         console.warn(`Failed to load words for book ID: ${bookId}`);
 
@@ -792,35 +796,31 @@ const SpeedReader = () => {
     }, 100);
   };
 
-  // Add a toggle for switching between reader and library views
+  // Update the toggleView function
   const toggleView = async () => {
-    const newView = currentView === "reader" ? "library" : "reader";
+    if (currentView === "reader") {
+      // Set any state needed before navigation
+      setIsPlaying(false);
 
-    // Save progress when switching to library
-    if (newView === "library" && currentBookId) {
-      // Update book progress in the library
-      await updateBookProgress(currentBookId, currentWordIndex);
-
-      // Refresh the library to show updated progress
-      setLibraryKey(Date.now());
-
-      // Log state information for debugging
-      console.log(
-        `Switching to library view. Current book ID: ${currentBookId}, Progress: ${currentWordIndex}`
-      );
-    } else if (newView === "reader") {
-      // Verify we have a valid book to read when going back to reader
-      if (!currentBookId) {
-        console.log("No book selected, remaining in library view");
-        alert("Please select a book to read first.");
-        return;
+      // Use the navigation callback if provided
+      if (onNavigateToLibrary) {
+        onNavigateToLibrary();
+      } else {
+        setCurrentView("library");
       }
-      console.log(
-        `Switching to reader view. Current book ID: ${currentBookId}`
-      );
+    } else {
+      // We're in library view, switch to reader
+      if (onNavigateToReader) {
+        // Only pass the currentBookId if it exists
+        if (currentBookId) {
+          onNavigateToReader(currentBookId);
+        } else {
+          onNavigateToReader();
+        }
+      } else {
+        setCurrentView("reader");
+      }
     }
-
-    setCurrentView(newView);
   };
 
   // Replace the existing useEffect for first load with this:
@@ -839,34 +839,102 @@ const SpeedReader = () => {
     }
   }, []);
 
+  // Update the initialBookId useEffect
+  useEffect(() => {
+    if (initialBookId && initialBookId !== currentBookId) {
+      console.log(`Loading initial book from URL parameter: ${initialBookId}`);
+      handleSelectBook(initialBookId);
+    }
+  }, [initialBookId, currentBookId, handleSelectBook]);
+
   return (
-    <div className="reader-container">
-      <div className="input-type-selector">
-        <label htmlFor="input-type">Reading Mode:</label>
-        <select
-          id="input-type"
-          value={inputType}
-          onChange={handleInputTypeChange}
-          className="input-type-select"
-        >
-          <option value={InputType.EPUB}>eBook (EPUB)</option>
-          <option value={InputType.TEXT}>Plain Text</option>
-        </select>
+    <div className={`speed-reader-container ${isDarkMode ? "dark-mode" : ""}`}>
+      {/* Conditionally render based on the view mode */}
+      {currentView === "library" ? (
+        <div className="library-view">
+          <Library onSelectBook={handleSelectBook} refreshKey={libraryKey} />
 
-        {inputType === InputType.EPUB && (
-          <button className="view-toggle-btn" onClick={toggleView}>
-            {currentView === "reader" ? "View Library" : "Back to Reader"}
-          </button>
-        )}
+          {/* Restore the library-upload-container */}
+          <div className="library-upload-container">
+            <h3>Add a new book</h3>
+            <FileInput
+              inputType={InputType.EPUB}
+              onFileProcessed={handleFileProcessed}
+            />
+            {isDevelopmentMode && <StorageInfo showDetailed={true} />}
+          </div>
+        </div>
+      ) : currentView === "text" ? (
+        <div className="text-input-view">
+          <h2>Text Input</h2>
+          <p className="text-description">
+            Enter or paste your text below to start speed reading
+          </p>
 
-        {isDevelopmentMode && <StorageInfo showDetailed={false} />}
-      </div>
+          <div className="text-editor">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Enter or paste your text here..."
+              rows={10}
+            ></textarea>
 
-      {inputType === InputType.EPUB ? (
-        // EPUB Mode
-        currentView === "reader" ? (
-          // Reader View for EPUB
-          <>
+            <button
+              className="start-reading-btn"
+              onClick={() => {
+                const processedWords = processText(text);
+                handleFileProcessed({
+                  text: text,
+                  words: processedWords,
+                  fileName: "Manual Text Input",
+                });
+                if (onNavigateToReader) {
+                  onNavigateToReader();
+                } else {
+                  setCurrentView("reader");
+                }
+              }}
+            >
+              Start Reading
+            </button>
+          </div>
+
+          <div className="separator">or</div>
+
+          <div className="file-upload-section">
+            <FileInput
+              inputType={InputType.TEXT}
+              onFileProcessed={handleFileProcessed}
+            />
+          </div>
+        </div>
+      ) : (
+        // Reader view (default)
+        <div className="reader-view">
+          {/* Restore input type selector and dark mode toggle */}
+          <div className="input-type-selector">
+            <label htmlFor="input-type">Reading Mode:</label>
+            <select
+              id="input-type"
+              value={inputType}
+              onChange={handleInputTypeChange}
+              className="input-type-select"
+            >
+              <option value={InputType.EPUB}>eBook (EPUB)</option>
+              <option value={InputType.TEXT}>Plain Text</option>
+            </select>
+
+            {inputType === InputType.EPUB && (
+              <button className="view-toggle-btn" onClick={toggleView}>
+                {currentView === "reader" ? "View Library" : "Back to Reader"}
+              </button>
+            )}
+
+            {isDevelopmentMode && <StorageInfo showDetailed={false} />}
+          </div>
+
+          {/* Text Display */}
+          <div className="text-display">
             <div className="word-display">
               <span className="word first-word">
                 {getDisplayWords(currentWordIndex).prev}
@@ -878,82 +946,33 @@ const SpeedReader = () => {
                 {getDisplayWords(currentWordIndex).next}
               </span>
             </div>
-
-            <ReaderControls
-              isPlaying={isPlaying}
-              wpm={wpm}
-              currentChapter={currentChapter}
-              chapters={chapters}
-              currentWordIndex={currentWordIndex}
-              totalWords={words.length}
-              fileName={fileName}
-              isDarkMode={isDarkMode}
-              onPlayPause={togglePlay}
-              onReset={handleReset}
-              onWpmChange={handleWpmInputChange}
-              onChapterSelect={handleChapterSelect}
-              onThemeToggle={() => setIsDarkMode(!isDarkMode)}
-            />
-
-            {words.length === 0 && (
-              <FileInput
-                inputType={InputType.EPUB}
-                onFileProcessed={handleFileProcessed}
-              />
-            )}
-          </>
-        ) : (
-          // Library View for EPUB
-          <>
-            <Library key={libraryKey} onSelectBook={handleSelectBook} />
-
-            <div className="library-upload-container">
-              <h3>Add a new book</h3>
-              <FileInput
-                inputType={InputType.EPUB}
-                onFileProcessed={handleFileProcessed}
-              />
-              {isDevelopmentMode && <StorageInfo showDetailed={true} />}
-            </div>
-          </>
-        )
-      ) : (
-        // TEXT Mode - Always show reader view with text input
-        <>
-          <div className="word-display">
-            <span className="word first-word">
-              {getDisplayWords(currentWordIndex).prev}
-            </span>
-            <span className={`word ${!isMobile ? "current-word" : ""}`}>
-              {getDisplayWords(currentWordIndex).current}
-            </span>
-            <span className={`word ${isMobile ? "current-word" : ""}`}>
-              {getDisplayWords(currentWordIndex).next}
-            </span>
           </div>
 
+          {/* File Input */}
+          {chapters.length === 0 && (
+            <FileInput
+              inputType={inputType}
+              onFileProcessed={handleFileProcessed}
+            />
+          )}
+
+          {/* Controls */}
           <ReaderControls
             isPlaying={isPlaying}
             wpm={wpm}
-            currentChapter={currentChapter}
-            chapters={chapters}
             currentWordIndex={currentWordIndex}
             totalWords={words.length}
-            fileName={fileName}
-            isDarkMode={isDarkMode}
             onPlayPause={togglePlay}
             onReset={handleReset}
             onWpmChange={handleWpmInputChange}
+            isDarkMode={isDarkMode}
+            currentChapter={currentChapter}
+            chapters={chapters}
             onChapterSelect={handleChapterSelect}
+            fileName={fileName}
             onThemeToggle={() => setIsDarkMode(!isDarkMode)}
           />
-
-          {/* Always show text input for TEXT mode */}
-          <FileInput
-            inputType={InputType.TEXT}
-            onFileProcessed={handleFileProcessed}
-          />
-        </>
+        </div>
       )}
     </div>
   );

@@ -57,37 +57,109 @@ body {
   align-items: center;
 }
 
-/* Word display area - Apple-style card */
-.word-display {
-  background-color: var(--bg-secondary);
-  padding: 2.5rem;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  min-height: 8rem;
+/* Reader layout improvements */
+.reader-view {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  width: calc(100% - 2rem);
-  max-width: 48rem;
-  transition: var(--transition);
+  padding: 20px;
+  margin: 0 auto;
+  max-width: 800px;
+  width: 100%;
+  height: 100%;
 }
 
-.word {
-  font-size: clamp(1.5rem, 4vw, 3.5rem);
-  font-weight: 600;
+.text-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  width: 100%;
+  background-color: var(--bg-secondary, #f5f5f7);
+  color: var(--text-primary, #1d1d1f);
+  border-radius: 12px;
+  margin: 20px 0;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .text-display {
+  background-color: var(--bg-secondary, #2d2d2f);
+  color: var(--text-primary, #f5f5f7);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.word-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
   text-align: center;
-  white-space: nowrap;
-  letter-spacing: -0.02em;
-  opacity: 0.4;
-  transition: var(--transition);
-  flex-shrink: 0;
+}
+
+/* Make word styling more Apple-like */
+.word {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 36px;
+  margin: 0 10px;
+  transition: all 0.2s ease;
+  color: var(--text-primary, #1d1d1f);
+}
+
+[data-theme="dark"] .word {
+  color: var(--text-primary, #f5f5f7);
 }
 
 .current-word {
-  opacity: 1;
-  color: var(--highlight-word);
+  color: var(--accent, #0071e3) !important;
+  font-weight: 700;
+  transform: scale(1.1);
+}
+
+[data-theme="dark"] .current-word {
+  color: var(--accent, #0a84ff) !important;
+}
+
+/* Style the input selector to match Apple's design */
+.input-type-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 20px;
+  background-color: var(--control-bg, rgba(255, 255, 255, 0.1));
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.input-type-select {
+  background-color: var(--input-background, #ffffff);
+  border: 1px solid var(--input-border, #d1d1d6);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--input-text, #333);
+  outline: none;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+/* Fix library button */
+.library-button {
+  position: absolute;
+  top: 80px;
+  left: 20px;
+  background-color: var(--button-background, #0071e3);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10;
 }
 
 /* Word display for single long words */

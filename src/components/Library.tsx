@@ -9,9 +9,10 @@ import "../styles/Library.css";
 
 interface LibraryProps {
   onSelectBook: (bookId: string) => void;
+  refreshKey?: number;
 }
 
-const Library: React.FC<LibraryProps> = ({ onSelectBook }) => {
+const Library: React.FC<LibraryProps> = ({ onSelectBook, refreshKey }) => {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,7 +32,7 @@ const Library: React.FC<LibraryProps> = ({ onSelectBook }) => {
     };
 
     loadBooks();
-  }, []);
+  }, [refreshKey]);
 
   const handleBookClick = (bookId: string) => {
     onSelectBook(bookId);
