@@ -9,15 +9,26 @@
   z-index: 1000;
   padding: 15px 0;
   margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
-.app-navigation ul {
+.app-navigation .nav-links {
   display: flex;
   justify-content: center;
   list-style: none;
   margin: 0;
   padding: 0;
   gap: 30px;
+  flex-grow: 1;
+}
+
+.app-navigation .nav-controls {
+  display: flex;
+  align-items: center;
 }
 
 .app-navigation li {
@@ -70,7 +81,13 @@
 
 /* Responsive styles */
 @media (max-width: 640px) {
-  .app-navigation ul {
+  .app-navigation {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .app-navigation .nav-links {
     gap: 10px;
   }
 

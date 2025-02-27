@@ -103,6 +103,7 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
 
   // Use effect to update currentView when viewMode prop changes
   useEffect(() => {
+    // Always prefer the viewMode prop over any other logic
     setCurrentView(viewMode);
   }, [viewMode]);
 
@@ -147,22 +148,8 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
           localStorage.setItem("speedReaderInputType", newInputType);
         }
 
-        // Set input type and update view accordingly
-        const newInputType = settings.inputType as InputType;
-        setInputType(newInputType);
-
-        // If in EPUB mode and no book is selected, force library view
-        if (newInputType === InputType.EPUB) {
-          const hasCurrentBook = !!localStorage.getItem(
-            "speedReaderCurrentBookId"
-          );
-          if (!hasCurrentBook) {
-            setCurrentView("library");
-          }
-        } else {
-          // In TEXT mode, always default to reader view
-          setCurrentView("reader");
-        }
+        // IMPORTANT: Don't modify currentView here, as we want to respect the viewMode prop
+        // This was causing the bug where library view wasn't showing properly
 
         // Save theme to localStorage if it doesn't exist
         if (localStorage.getItem("speedReaderTheme") === null) {
@@ -832,10 +819,12 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
     const hasVisitedBefore = localStorage.getItem("speedReaderFirstVisit");
 
     if (!hasVisitedBefore) {
-      // First time user - set EPUB mode and library view
+      // First time user - set EPUB mode but don't override the viewMode
       setInputType(InputType.EPUB);
       localStorage.setItem("speedReaderInputType", InputType.EPUB);
-      setCurrentView("library");
+
+      // Don't override viewMode prop with setCurrentView here
+      // This allows LibraryPage to properly control the initial view
 
       // Mark that we've set initial preferences
       localStorage.setItem("speedReaderFirstVisit", "true");
