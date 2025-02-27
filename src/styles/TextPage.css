@@ -1,7 +1,8 @@
 /* Text Input Page Styling */
 .text-page {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
   padding: 0 20px;
 }
@@ -159,8 +160,8 @@
   }
 }
 
-/* Embedded Reader Styling */
-.embedded-reader-container {
+/* Text Reader Styling */
+.text-reader-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,25 +193,50 @@
   transform: translateY(-1px);
 }
 
+/* Make sure the reader is nicely centered */
+.embedded-reader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+}
+
 .embedded-reader {
   width: 100%;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
 }
 
-/* Make sure word display is properly centered */
-.embedded-reader .text-display {
+.reader-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.no-content-message {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 300px;
   width: 100%;
-  margin: 20px auto;
-  background-color: var(--reader-bg, #2a2a2a);
-  color: var(--reader-text, #ffffff);
+  background-color: var(--bg-secondary);
   border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  color: var(--text-secondary);
+  font-size: 16px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Control button size for mobile */
+.text-only.file-upload-section {
+  margin-top: 40px;
+  padding: 20px;
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  width: 100%;
 }
 
 /* Dark mode adjustments */
@@ -220,4 +246,9 @@
 
 [data-theme="dark"] .back-to-input-btn:hover {
   background-color: var(--button-hover-dark, #3395ff);
+}
+
+[data-theme="dark"] .no-content-message {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
 }

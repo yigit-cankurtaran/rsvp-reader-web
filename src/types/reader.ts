@@ -41,6 +41,7 @@ export interface FileInputProps {
     fileName: string;
     chapters?: Chapter[];
   }, file?: File) => void;
+  acceptFormats?: string; // Optional, to specify acceptable file formats
 }
 
 export interface ReaderControlsProps {
@@ -57,5 +58,21 @@ export interface ReaderControlsProps {
   onWpmChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onChapterSelect: (chapterIndex: number) => void;
   onThemeToggle: () => void;
+}
+
+export interface WordReaderProps {
+  words: string[];
+  currentWordIndex: number;
+  isPlaying: boolean;
+  wpm: number;
+  onWordIndexChange: (index: number) => void;
+  isDarkMode: boolean;
+}
+
+export interface TextReaderProps {
+  initialText?: string;
+  initialWords?: string[];
+  fileName?: string;
+  onNavigateToLibrary?: () => void;
 }
 

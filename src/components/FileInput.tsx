@@ -11,6 +11,7 @@ const log = logger.forModule("FileInput");
 const FileInput: React.FC<FileInputProps> = ({
   inputType,
   onFileProcessed,
+  acceptFormats,
 }) => {
   const [textInput, setTextInput] = useState("");
 
@@ -105,95 +106,94 @@ const FileInput: React.FC<FileInputProps> = ({
           break;
 
         case InputType.TEXT:
-          const content = await file.text();
-          onFileProcessed(
-            {
-              text: content,
-              words: processText(content),
-              fileName: file.name,
-              chapters: [],
-            },
-            file
-          );
+          // Process text files (.txt, .md, etc.)
+          try {
+            const content = await file.text();
+            onFileProcessed(
+              {
+                text: content,
+                words: processText(content),
+                fileName: file.name,
+                chapters: [],
+              },
+              file
+            );
+          } catch (textError) {
+            console.error("Error reading text file:", textError);
+            alert(
+              "There was an error reading the text file. Please try another file."
+            );
+          }
           break;
       }
     } catch (error) {
-      log.error("Error reading file:", error);
-      alert(`Error reading ${inputType} file. Please try another file.`);
-
-      // Final fallback for EPUB files
-      if (inputType === InputType.EPUB && file) {
-        const fallbackText = `This file could not be processed.`;
-        const fallbackWords = processText(fallbackText);
-        onFileProcessed(
-          {
-            text: fallbackText,
-            words: fallbackWords,
-            fileName: file.name,
-            chapters: [
-              {
-                title: "Error",
-                startIndex: 0,
-                endIndex: fallbackWords.length - 1,
-              },
-            ],
-          },
-          file
-        );
-      }
+      console.error("File upload error:", error);
+      alert("There was an error processing the file. Please try again.");
     }
   };
 
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (textInput.trim()) {
-      onFileProcessed({
-        text: textInput,
-        words: processText(textInput),
-        fileName: "Manual Input",
-        chapters: [],
-      });
-    }
+  // Handle text submission from the textarea
+  const handleTextSubmit = () => {
+    if (textInput.trim().length === 0) return;
+
+    onFileProcessed({
+      text: textInput,
+      words: processText(textInput),
+      fileName: "Text Input",
+      chapters: [],
+    });
+
+    // Clear the input after processing
+    setTextInput("");
   };
 
-  if (inputType === InputType.TEXT) {
-    return (
-      <form onSubmit={handleTextSubmit} className="text-input-form">
-        <textarea
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
-          placeholder="Enter or paste your text here..."
-          className="text-input-area"
-        />
-        <div className="text-input-controls">
-          <button type="submit" className="btn btn-primary">
-            Start Reading
-          </button>
-          <p className="text-input-or">or</p>
-          <div className="file-control">
-            <input
-              type="file"
-              accept=".txt"
-              onChange={handleFileUpload}
-              className="file-input"
-            />
-          </div>
-        </div>
-      </form>
-    );
-  }
+  // Determine accept attribute for file input based on input type and acceptFormats
+  const getAcceptAttribute = () => {
+    if (acceptFormats) {
+      return acceptFormats;
+    }
+
+    switch (inputType) {
+      case InputType.EPUB:
+        return ".epub";
+      case InputType.TEXT:
+        return ".txt,.text,.md";
+      default:
+        return "";
+    }
+  };
 
   return (
     <div className="file-control-wrapper">
       <div className="file-control">
-        <input
-          type="file"
-          accept=".epub"
-          onChange={handleFileUpload}
-          className="file-input"
-        />
-        <div className="file-input-label">Choose File</div>
+        <label className="file-input-label">
+          Choose {inputType === InputType.EPUB ? "EPUB" : "Text"} File
+          <input
+            type="file"
+            onChange={handleFileUpload}
+            className="file-input"
+            accept={getAcceptAttribute()}
+          />
+        </label>
       </div>
+
+      {inputType === InputType.TEXT && (
+        <div className="text-input-form">
+          <textarea
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            className="text-input-area"
+            placeholder="Or paste your text here..."
+          />
+          <button
+            onClick={handleTextSubmit}
+            disabled={textInput.trim().length === 0}
+            className="btn btn-primary"
+          >
+            Read Text
+          </button>
+        </div>
+      )}
     </div>
   );
 };

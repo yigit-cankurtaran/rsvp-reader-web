@@ -251,19 +251,22 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
   };
 
   // Update WPM handler to save setting
-  const handleWpmChange = useCallback(async (newWpm: number) => {
-    setWpm(newWpm);
+  const handleWpmChange = (newWpm: number) => {
+    // Validate WPM is in acceptable range
+    if (newWpm >= 50 && newWpm <= 1000) {
+      setWpm(newWpm);
 
-    // Save to localStorage for backward compatibility
-    localStorage.setItem("speedReaderWpm", newWpm.toString());
+      // Save to localStorage
+      localStorage.setItem("speedReaderWpm", newWpm.toString());
 
-    // Also save to IndexedDB
-    try {
-      await saveAppSettings({ wpm: newWpm });
-    } catch (error) {
-      console.error("Error saving WPM to IndexedDB:", error);
+      // Also save to IndexedDB if available
+      try {
+        saveAppSettings({ wpm: newWpm });
+      } catch (error) {
+        console.error("Failed to save WPM to IndexedDB:", error);
+      }
     }
-  }, []);
+  };
 
   // Add keyboard control handler
   useEffect(() => {
@@ -847,6 +850,28 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
     }
   }, [initialBookId, currentBookId, handleSelectBook]);
 
+  // Toggle dark mode handler
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+
+    // Save theme to localStorage
+    localStorage.setItem("speedReaderTheme", newMode ? "dark" : "light");
+
+    // Also update in DB if possible
+    try {
+      saveAppSettings({ theme: newMode ? "dark" : "light" });
+    } catch (error) {
+      console.error("Failed to save theme setting to DB:", error);
+    }
+
+    // Apply theme to document
+    document.documentElement.setAttribute(
+      "data-theme",
+      newMode ? "dark" : "light"
+    );
+  };
+
   return (
     <div className={`speed-reader-container ${isDarkMode ? "dark-mode" : ""}`}>
       {/* Conditionally render based on the view mode */}
@@ -970,7 +995,7 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
             chapters={chapters}
             onChapterSelect={handleChapterSelect}
             fileName={fileName}
-            onThemeToggle={() => setIsDarkMode(!isDarkMode)}
+            onThemeToggle={toggleDarkMode}
           />
         </div>
       )}

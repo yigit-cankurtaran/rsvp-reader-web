@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import SpeedReader from "../SpeedReader";
 import Navigation from "../components/Navigation";
 import { getBookById } from "../helpers/libraryManager";
+import BookReader from "../components/BookReader";
 
 const ReaderPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,24 +47,31 @@ const ReaderPage: React.FC = () => {
     verifyBook();
   }, [bookId, navigate]);
 
-  // If we're using a text-input loaded from localStorage
-  useEffect(() => {
-    const words = localStorage.getItem("speedReaderWords");
-    if (!bookId && words) {
-      // We have text content but no book ID (direct text input)
-      console.log("Loading reader with text input content (no book ID)");
-    }
-  }, [bookId]);
+  // If there's no book ID, show a prompt to select a book
+  if (!currentBookId) {
+    return (
+      <div className="page-container">
+        <Navigation />
+        <div className="reader-page">
+          <div className="reader-empty-state">
+            <h2>No Book Selected</h2>
+            <p>Please select a book from your library to start reading</p>
+            <button onClick={handleGoToLibrary} className="go-to-library-btn">
+              Go to Library
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
       <Navigation />
       <div className="reader-page">
-        <SpeedReader
-          viewMode="reader"
-          onNavigateToLibrary={handleGoToLibrary}
-          onNavigateToReader={handleGoToReader}
-          initialBookId={currentBookId}
+        <BookReader
+          bookId={currentBookId}
+          onBackToLibrary={handleGoToLibrary}
         />
       </div>
     </div>

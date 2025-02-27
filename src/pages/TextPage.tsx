@@ -5,13 +5,14 @@ import "../styles/TextPage.css";
 import { processText } from "../helpers/textProcessor";
 import FileInput from "../components/FileInput";
 import { InputType } from "../types/reader";
-import SpeedReader from "../SpeedReader";
+import TextReader from "../components/TextReader";
 
 const TextPage: React.FC = () => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [processedWords, setProcessedWords] = useState<string[]>([]);
   const [showReader, setShowReader] = useState(false);
+  const [fileName, setFileName] = useState("Text Input");
 
   // Navigation handlers
   const handleGoToLibrary = () => {
@@ -34,6 +35,23 @@ const TextPage: React.FC = () => {
     localStorage.setItem("speedReaderText", text);
     localStorage.setItem("speedReaderWords", JSON.stringify(words));
     localStorage.setItem("speedReaderFileName", "Text Input");
+  };
+
+  // Handle file processed by FileInput
+  const handleFileProcessed = (data: {
+    text: string;
+    words: string[];
+    fileName: string;
+  }) => {
+    setText(data.text);
+    setProcessedWords(data.words);
+    setFileName(data.fileName);
+    setShowReader(true);
+
+    // Save text content temporarily
+    localStorage.setItem("speedReaderText", data.text);
+    localStorage.setItem("speedReaderWords", JSON.stringify(data.words));
+    localStorage.setItem("speedReaderFileName", data.fileName);
   };
 
   return (
@@ -69,25 +87,13 @@ const TextPage: React.FC = () => {
               <h3>Upload a Text File</h3>
               <FileInput
                 inputType={InputType.TEXT}
-                onFileProcessed={(result) => {
-                  // Save the processed file data
-                  localStorage.setItem("speedReaderText", result.text);
-                  localStorage.setItem(
-                    "speedReaderWords",
-                    JSON.stringify(result.words)
-                  );
-                  localStorage.setItem("speedReaderFileName", result.fileName);
-
-                  // Show reader directly on this page
-                  setText(result.text);
-                  setProcessedWords(result.words);
-                  setShowReader(true);
-                }}
+                onFileProcessed={handleFileProcessed}
+                acceptFormats=".txt,.text,.md"
               />
             </div>
           </div>
         ) : (
-          <div className="embedded-reader-container">
+          <div className="text-reader-container">
             <div className="reader-controls">
               <button
                 className="back-to-input-btn"
@@ -96,14 +102,12 @@ const TextPage: React.FC = () => {
                 Back to Text Input
               </button>
             </div>
-            <div className="embedded-reader">
-              <SpeedReader
-                viewMode="reader"
-                onNavigateToLibrary={handleGoToLibrary}
-                initialText={text}
-                initialWords={processedWords}
-              />
-            </div>
+            <TextReader
+              initialText={text}
+              initialWords={processedWords}
+              fileName={fileName}
+              onNavigateToLibrary={handleGoToLibrary}
+            />
           </div>
         )}
       </div>
