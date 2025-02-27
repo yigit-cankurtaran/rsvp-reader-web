@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import JSZip from "jszip";
 import FileInput from "./components/FileInput";
 import ReaderControls from "./components/ReaderControls";
 import Library from "./components/Library";
@@ -11,7 +10,6 @@ import {
   updateBookProgress,
   getBookById,
 } from "./helpers/libraryManager";
-import { processText } from "./helpers/textProcessor";
 import {
   saveWordsForBook,
   loadWordsForBook,
@@ -29,6 +27,9 @@ import "./styles/StorageInfo.css";
 // far off TODO: add a local TTS thingy with kokoro
 
 const SpeedReader = () => {
+  // Development mode detection
+  const isDevelopmentMode = import.meta.env.DEV === true;
+
   const [text, setText] = useState(
     "Welcome to Speed Reader! Upload your text to begin."
   );
@@ -764,7 +765,7 @@ const SpeedReader = () => {
           </button>
         )}
 
-        <StorageInfo showDetailed={false} />
+        {isDevelopmentMode && <StorageInfo showDetailed={false} />}
       </div>
 
       {inputType === InputType.EPUB ? (
@@ -818,7 +819,7 @@ const SpeedReader = () => {
                 inputType={InputType.EPUB}
                 onFileProcessed={handleFileProcessed}
               />
-              <StorageInfo showDetailed={true} />
+              {isDevelopmentMode && <StorageInfo showDetailed={true} />}
             </div>
           </>
         )

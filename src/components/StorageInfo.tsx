@@ -10,6 +10,14 @@ import {
   checkDBStorageUsage,
 } from "../helpers/dexieDB";
 
+/**
+ * StorageInfo Component
+ *
+ * DEVELOPER TOOL: This component is intended for development and debugging purposes.
+ * It displays information about storage usage and provides controls for cleanup and migration.
+ *
+ * It should be conditionally rendered only in development mode.
+ */
 interface StorageInfoProps {
   showDetailed?: boolean;
 }
@@ -130,7 +138,7 @@ const StorageInfo: React.FC<StorageInfoProps> = ({ showDetailed = false }) => {
         className="storage-info-header"
         onClick={() => setExpanded(!expanded)}
       >
-        <h3>Storage Info</h3>
+        <h3>Storage Info (Dev Tool)</h3>
         <span>{expanded ? "▲" : "▼"}</span>
       </div>
 

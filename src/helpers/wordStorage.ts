@@ -10,6 +10,10 @@ import {
   checkDBStorageUsage,
   isStorageLow
 } from './dexieDB';
+import logger from './logger';
+
+// Create a module-specific logger
+const log = logger.forModule('wordStorage');
 
 // Constants
 const CHUNK_SIZE = 10000; // Number of words per chunk
@@ -43,7 +47,7 @@ export const checkStorageUsage = async (): Promise<{ used: number; total: number
     // First check IndexedDB usage
     const dbUsage = await checkDBStorageUsage();
     
-    console.log(`IndexedDB usage: ${dbUsage.usage} bytes, ${dbUsage.bookCount} books, ${dbUsage.chunkCount} chunks`);
+    log.debug(`IndexedDB usage: ${dbUsage.usage} bytes, ${dbUsage.bookCount} books, ${dbUsage.chunkCount} chunks`);
     
     // Then fallback to localStorage for older data
     if (isStorageAvailable()) {
@@ -56,7 +60,7 @@ export const checkStorageUsage = async (): Promise<{ used: number; total: number
         }
       }
       
-      console.log(`localStorage usage: ${totalSize} bytes`);
+      log.debug(`localStorage usage: ${totalSize} bytes`);
       
       // Return combined storage usage
       const total = MAX_STORAGE_SIZE; // localStorage limit
@@ -77,7 +81,7 @@ export const checkStorageUsage = async (): Promise<{ used: number; total: number
       usedPercent: Math.min(usedPercent, 100) // Cap at 100%
     };
   } catch (error) {
-    console.error("Error checking storage usage:", error);
+    log.error("Error checking storage usage:", error);
     return { used: 0, total: MAX_STORAGE_SIZE, usedPercent: 0 };
   }
 };
@@ -89,7 +93,7 @@ export const checkStorageUsage = async (): Promise<{ used: number; total: number
 export const cleanupStorage = async (): Promise<boolean> => {
   try {
     // Clean up IndexedDB first
-    console.log("Cleaning up storage...");
+    log.info("Cleaning up storage...");
     
     // Get all books from IndexedDB
     const books = await db.books.toArray();
@@ -125,13 +129,13 @@ export const cleanupStorage = async (): Promise<boolean> => {
         }
       }
       
-      console.log(`Cleaned up ${removed} orphaned items from localStorage`);
+      log.info(`Cleaned up ${removed} orphaned items from localStorage`);
     }
     
-    console.log(`Cleaned up ${orphanedChunks} orphaned chunks from IndexedDB`);
+    log.info(`Cleaned up ${orphanedChunks} orphaned chunks from IndexedDB`);
     return true;
   } catch (error) {
-    console.error("Error cleaning up storage:", error);
+    log.error("Error cleaning up storage:", error);
     return false;
   }
 };
@@ -141,17 +145,17 @@ export const cleanupStorage = async (): Promise<boolean> => {
  * @param bookId The book ID to check
  */
 export const debugStorageForBook = async (bookId: string): Promise<void> => {
-  console.log(`Debugging storage for book ID: ${bookId}`);
+  log.info(`Debugging storage for book ID: ${bookId}`);
   
   try {
     // Check IndexedDB first
     const chunks = await db.wordChunks.where('bookId').equals(bookId).toArray();
     
     if (chunks.length > 0) {
-      console.log(`Found ${chunks.length} chunks in IndexedDB for book ID: ${bookId}`);
-      console.log(`Total words in IndexedDB: ${chunks.reduce((total, chunk) => total + chunk.words.length, 0)}`);
+      log.info(`Found ${chunks.length} chunks in IndexedDB for book ID: ${bookId}`);
+      log.info(`Total words in IndexedDB: ${chunks.reduce((total, chunk) => total + chunk.words.length, 0)}`);
     } else {
-      console.log(`No chunks found in IndexedDB for book ID: ${bookId}`);
+      log.info(`No chunks found in IndexedDB for book ID: ${bookId}`);
     }
     
     // Check localStorage
@@ -163,21 +167,21 @@ export const debugStorageForBook = async (bookId: string): Promise<void> => {
           const parsedData = JSON.parse(data);
           
           if (parsedData && typeof parsedData === 'object' && parsedData.totalChunks) {
-            console.log(`Found chunked data in localStorage: ${parsedData.totalChunks} chunks, ${parsedData.totalWords} words`);
+            log.info(`Found chunked data in localStorage: ${parsedData.totalChunks} chunks, ${parsedData.totalWords} words`);
           } else if (Array.isArray(parsedData)) {
-            console.log(`Found ${parsedData.length} words in localStorage`);
+            log.info(`Found ${parsedData.length} words in localStorage`);
           } else {
-            console.log(`Found data in localStorage but format is unknown`);
+            log.info(`Found data in localStorage but format is unknown`);
           }
         } catch (e) {
-          console.error(`Error parsing localStorage data for book ID ${bookId}:`, e);
+          log.error(`Error parsing localStorage data for book ID ${bookId}:`, e);
         }
       } else {
-        console.log(`No data found in localStorage for book ID: ${bookId}`);
+        log.info(`No data found in localStorage for book ID: ${bookId}`);
       }
     }
   } catch (error) {
-    console.error(`Error debugging storage for book ID ${bookId}:`, error);
+    log.error(`Error debugging storage for book ID ${bookId}:`, error);
   }
 };
 
@@ -189,18 +193,18 @@ export const debugStorageForBook = async (bookId: string): Promise<void> => {
  */
 export const saveWordsForBook = async (bookId: string, words: string[]): Promise<boolean> => {
   if (!bookId || !words || words.length === 0) {
-    console.error("Invalid book ID or words array");
+    log.error("Invalid book ID or words array");
     return false;
   }
   
-  console.log(`Saving ${words.length} words for book ID: ${bookId}`);
+  log.info(`Saving ${words.length} words for book ID: ${bookId}`);
   
   try {
     // First try to save to IndexedDB
     const saved = await saveWordsForBookDB(bookId, words);
     
     if (saved) {
-      console.log(`Successfully saved words to IndexedDB for book ID: ${bookId}`);
+      log.info(`Successfully saved words to IndexedDB for book ID: ${bookId}`);
       return true;
     }
     
@@ -224,12 +228,12 @@ export const saveWordsForBook = async (bookId: string, words: string[]): Promise
           localStorage.setItem(`speedReaderWords_${bookId}_chunk_${i}`, JSON.stringify(chunkWords));
         }
         
-        console.log(`Successfully chunked and saved ${words.length} words for book ID: ${bookId}`);
+        log.info(`Successfully chunked and saved ${words.length} words for book ID: ${bookId}`);
         return true;
       } else {
         // For smaller arrays, store directly
         localStorage.setItem(`speedReaderWords_${bookId}`, JSON.stringify(words));
-        console.log(`Successfully saved ${words.length} words for book ID: ${bookId} to localStorage`);
+        log.info(`Successfully saved ${words.length} words for book ID: ${bookId} to localStorage`);
         return true;
       }
     }
@@ -237,7 +241,7 @@ export const saveWordsForBook = async (bookId: string, words: string[]): Promise
     // Both IndexedDB and localStorage failed
     return false;
   } catch (error) {
-    console.error(`Error saving words for book ID ${bookId}:`, error);
+    log.error(`Error saving words for book ID ${bookId}:`, error);
     return false;
   }
 };
@@ -249,18 +253,18 @@ export const saveWordsForBook = async (bookId: string, words: string[]): Promise
  */
 export const loadWordsForBook = async (bookId: string): Promise<string[] | null> => {
   if (!bookId) {
-    console.error("Invalid book ID");
+    log.error("Invalid book ID");
     return null;
   }
   
-  console.log(`Loading words for book ID: ${bookId}`);
+  log.info(`Loading words for book ID: ${bookId}`);
   
   try {
     // First try to load from IndexedDB
     const words = await loadWordsForBookDB(bookId);
     
     if (words && words.length > 0) {
-      console.log(`Successfully loaded ${words.length} words from IndexedDB for book ID: ${bookId}`);
+      log.info(`Successfully loaded ${words.length} words from IndexedDB for book ID: ${bookId}`);
       return words;
     }
     
@@ -291,40 +295,40 @@ export const loadWordsForBook = async (bookId: string): Promise<string[] | null>
             }
           }
           
-          console.log(`Successfully loaded ${allWords.length} words from chunked localStorage for book ID: ${bookId}`);
+          log.info(`Successfully loaded ${allWords.length} words from chunked localStorage for book ID: ${bookId}`);
           
           // While we're here, let's migrate this data to IndexedDB for next time
           saveWordsForBookDB(bookId, allWords).then(saved => {
             if (saved) {
-              console.log(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
+              log.info(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
             }
           });
           
           return allWords;
         } else if (Array.isArray(parsedData)) {
           // It's a regular array of words
-          console.log(`Successfully loaded ${parsedData.length} words from localStorage for book ID: ${bookId}`);
+          log.info(`Successfully loaded ${parsedData.length} words from localStorage for book ID: ${bookId}`);
           
           // Migrate to IndexedDB for next time
           saveWordsForBookDB(bookId, parsedData).then(saved => {
             if (saved) {
-              console.log(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
+              log.info(`Migrated words for book ID ${bookId} from localStorage to IndexedDB`);
             }
           });
           
           return parsedData;
         }
       } catch (e) {
-        console.error(`Error parsing words data for book ID ${bookId}:`, e);
+        log.error(`Error parsing words data for book ID ${bookId}:`, e);
         return null;
       }
     }
     
     // Not found in either storage
-    console.log(`No words found for book ID: ${bookId}`);
+    log.info(`No words found for book ID: ${bookId}`);
     return null;
   } catch (error) {
-    console.error(`Error loading words for book ID ${bookId}:`, error);
+    log.error(`Error loading words for book ID ${bookId}:`, error);
     return null;
   }
 };
@@ -335,11 +339,11 @@ export const loadWordsForBook = async (bookId: string): Promise<string[] | null>
  */
 export const clearWordsForBook = async (bookId: string): Promise<void> => {
   if (!bookId) {
-    console.error("Invalid book ID");
+    log.error("Invalid book ID");
     return;
   }
   
-  console.log(`Clearing words for book ID: ${bookId}`);
+  log.info(`Clearing words for book ID: ${bookId}`);
   
   try {
     // First clear from IndexedDB
@@ -371,9 +375,9 @@ export const clearWordsForBook = async (bookId: string): Promise<void> => {
       }
     }
     
-    console.log(`Successfully cleared words for book ID: ${bookId}`);
+    log.info(`Successfully cleared words for book ID: ${bookId}`);
   } catch (error) {
-    console.error(`Error clearing words for book ID ${bookId}:`, error);
+    log.error(`Error clearing words for book ID ${bookId}:`, error);
   }
 };
 
