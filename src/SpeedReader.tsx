@@ -24,6 +24,8 @@ import { saveAppSettings, getAppSettings } from "./helpers/dexieDB";
 import "./SpeedReader.css";
 import "./styles/StorageInfo.css";
 
+const isDevelopment = import.meta.env.DEV;
+
 interface SpeedReaderProps {
   viewMode?: "reader" | "library";
   onNavigateToLibrary?: () => void;
@@ -278,7 +280,7 @@ const SpeedReader: React.FC<SpeedReaderProps> = ({
         <>
           <FileInput onFileProcessed={handleFileProcessed} />
           <Library key={libraryKey} onSelectBook={handleSelectBook} />
-          <StorageInfo />
+          {isDevelopment && <StorageInfo />}
         </>
       ) : (
         <ReaderControls
