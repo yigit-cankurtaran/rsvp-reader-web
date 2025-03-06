@@ -12,7 +12,6 @@ const Navigation: React.FC = () => {
   const isLibraryActive =
     location.pathname === "/" || location.pathname === "/library";
   // Check if we're on text input page
-  const isTextActive = location.pathname === "/text";
 
   return (
     <nav className="app-navigation">
@@ -25,11 +24,6 @@ const Navigation: React.FC = () => {
         <li>
           <NavLink to="/reader" className={isReaderActive ? "active" : ""}>
             Reader
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/text" className={isTextActive ? "active" : ""}>
-            Text Input
           </NavLink>
         </li>
       </ul>

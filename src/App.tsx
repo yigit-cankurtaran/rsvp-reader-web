@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LibraryPage from "./pages/LibraryPage";
 import ReaderPage from "./pages/ReaderPage";
-import TextPage from "./pages/TextPage";
 import { cleanupLocalStorage } from "./helpers/libraryManager";
 import { saveAppSettings } from "./helpers/dexieDB";
 import "./styles/Pages.css";
@@ -84,7 +83,6 @@ function App() {
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/reader/:bookId" element={<ReaderPage />} />
         <Route path="/reader" element={<ReaderPage />} />
-        <Route path="/text" element={<TextPage />} />
 
         {/* Fallback route - redirect to library */}
         <Route path="*" element={<Navigate to="/library" replace />} />

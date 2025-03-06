@@ -28,20 +28,14 @@ export interface ReaderState {
   isDarkMode: boolean;
 }
 
-export enum InputType {
-  TEXT = "text",
-  EPUB = "epub",
-}
-
 export interface FileInputProps {
-  inputType: InputType;
   onFileProcessed: (data: {
     text: string;
     words: string[];
     fileName: string;
-    chapters?: Chapter[];
+    chapters: Chapter[];
   }, file?: File) => void;
-  acceptFormats?: string; // Optional, to specify acceptable file formats
+  acceptFormats?: string;
 }
 
 export interface ReaderControlsProps {
@@ -74,5 +68,16 @@ export interface TextReaderProps {
   initialWords?: string[];
   fileName?: string;
   onNavigateToLibrary?: () => void;
+}
+
+export interface BookProgress {
+  currentWordIndex: number;
+  lastUpdated: string;
+}
+
+export interface AppSettings {
+  wpm: number;
+  theme: 'light' | 'dark';
+  lastBookId?: string;
 }
 
