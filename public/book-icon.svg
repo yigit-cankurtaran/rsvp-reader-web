@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Book cover -->
+  <path d="M128 64C128 46.33 142.33 32 160 32H400C417.67 32 432 46.33 432 64V448C432 465.67 417.67 480 400 480H160C142.33 480 128 465.67 128 448V64Z" fill="#4F46E5"/>
+  
+  <!-- Book pages -->
+  <path d="M96 80C96 62.33 110.33 48 128 48V464C110.33 464 96 449.67 96 432V80Z" fill="#E5E7EB"/>
+  
+  <!-- Book spine details -->
+  <rect x="148" y="96" width="264" height="8" rx="4" fill="white" opacity="0.9"/>
+  <rect x="148" y="128" width="264" height="8" rx="4" fill="white" opacity="0.7"/>
+  <rect x="148" y="160" width="264" height="8" rx="4" fill="white" opacity="0.5"/>
+  
+  <!-- Bookmark -->
+  <path d="M384 96V192L352 160L320 192V96H384Z" fill="#EF4444"/>
+</svg> 
