@@ -271,6 +271,18 @@ body {
   margin: 1rem 0;
   display: flex;
   justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .file-control-wrapper {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .file-control {
+    text-align: center;
+  }
 }
 
 .file-control {
