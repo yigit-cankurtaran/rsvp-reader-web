@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import SpeedReader from "../SpeedReader";
 import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 
 const LibraryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ const LibraryPage: React.FC = () => {
           onNavigateToReader={handleGoToReader}
         />
       </div>
+      <Footer />
     </div>
   );
 };
