@@ -19,3 +19,14 @@ A simple web app written in React that allows you to read text at different spee
 npm install
 npm run dev
 ```
+
+## Deployment
+
+GitHub Pages deploys from `.github/workflows/deploy.yml` on pushes to `main`.
+
+Before the first deploy, set the repository's Pages source to GitHub Actions in
+GitHub settings.
+
+```bash
+npm run build:github-pages
+```

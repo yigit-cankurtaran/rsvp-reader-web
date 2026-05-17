@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Speed Reader</title>
+    <script>
+      (function () {
+        var basePath = "/rsvp-reader-web";
+        var current = window.location;
+        var path =
+          current.pathname.indexOf(basePath) === 0
+            ? current.pathname.slice(basePath.length)
+            : current.pathname;
+        var redirect = path + current.search + current.hash;
+
+        if (!redirect || redirect.charAt(0) !== "/") {
+          redirect = "/" + redirect;
+        }
+
+        current.replace(
+          current.origin +
+            basePath +
+            "/?gh-pages-redirect=" +
+            encodeURIComponent(redirect)
+        );
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

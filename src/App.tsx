@@ -6,6 +6,11 @@ import { cleanupLocalStorage } from "./helpers/libraryManager";
 import { saveAppSettings } from "./helpers/dexieDB";
 import "./styles/Pages.css";
 
+const routerBasename =
+  import.meta.env.BASE_URL === "/"
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
+
 function App() {
   // Run cleanup when the app starts
   useEffect(() => {
@@ -74,7 +79,7 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <Routes>
         {/* Place the root route first to ensure proper matching */}
         <Route path="/" element={<Navigate to="/library" replace />} />

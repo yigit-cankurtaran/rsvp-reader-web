@@ -2,9 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/book-icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%book-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Speed Reader</title>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var redirect = params.get("gh-pages-redirect");
+
+        if (redirect && redirect.charAt(0) === "/") {
+          var basePath = window.location.pathname.replace(/\/$/, "");
+          window.history.replaceState(null, "", basePath + redirect);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
